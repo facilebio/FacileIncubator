@@ -24,11 +24,16 @@ numeric vector that provides the pattern, ie. c(1, 2, 3, 2, 1) for a
 a tibble of features that match the template pattern
 }
 \description{
-Follows main idea from \code{\link[MApckg:PatternHunter]{MApckg::PatternHunter()}}. Thomas pointed out that
-this is called "template matching" in the field, which was (I think)
-originally coined by Pavlidis.
+Provides scores for genes where increasing values indicate closer
+concordance to some pattern of interest such as genes that have monotonically
+increasing, decreasing, or a peak in the middle, etc. This is called
+"template matching" in the field, which was (I think) originally coined by
+Pavlidis.
 }
 \details{
+This implementation follows the main idea from the \code{PatternHunger} function
+in the MApckg package.
+
 Other resources:
 \itemize{
 \item Analysis of strain and regional variation in gene expression in mouse brain
@@ -57,3 +62,6 @@ ones that increase over time\if{html}{\out{<div class="r">}}\preformatted{increa
 }\if{html}{\out{</div>}}
 }
 
+\references{
+\url{https://rdrr.io/github/flajole/MApckg/man/PatternHunter.html}
+}

@@ -1,9 +1,14 @@
 
 #' Score genes against a template of expression matching.
 #'
-#' Follows main idea from [MApckg::PatternHunter()]. Thomas pointed out that
-#' this is called "template matching" in the field, which was (I think)
-#' originally coined by Pavlidis.
+#' Provides scores for genes where increasing values indicate closer
+#' concordance to some pattern of interest such as genes that have monotonically
+#' increasing, decreasing, or a peak in the middle, etc. This is called
+#' "template matching" in the field, which was (I think) originally coined by
+#' Pavlidis.
+#'
+#' This implementation follows the main idea from the `PatternHunger` function
+#' in the MApckg package.
 #'
 #' Other resources:
 #' * Analysis of strain and regional variation in gene expression in mouse brain
@@ -34,7 +39,9 @@
 #'   template_match("ascending)
 #' ```
 #'
+#' @references \url{https://rdrr.io/github/flajole/MApckg/man/PatternHunter.html}
 #' @export
+#'
 #' @param x A FacileAnalysis result (likely FacileAnovaAnalysisResult).
 #'   We assume the formula was an intercept/effect model.
 #' @param template Defines the template to match against. Can be specified by

@@ -13,6 +13,7 @@ BugReports: https://github.com/facilebio/FacileIncubator/issues
 Depends:
     R (>= 3.6)
 Imports:
+    checkmate,
     dplyr,
     FacileAnalysis,
     tidyr
@@ -21,6 +22,7 @@ Suggests:
     testthat,
     withr
 Remotes:
+    facilebio/FacileAnalysis,
     facilebio/FacileBiocData,
     facilebio/FacileData,
     facilebio/FacileShine,
