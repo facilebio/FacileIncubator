@@ -62,7 +62,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
   org.info <- multiGSEA::species_info(organism)
   orgdb <- sprintf("org.%s.eg.db", org.info$bioc_abbrev)
 
-  mg.method <- ..assert_method_ran(x, method, direction = direction, ...)
+  mg.method <- .assert_method_ran(x, method, direction = direction, ...)
 
   # Figure out what score_by metric to use given the gsea method we are using
   # to simplify the GO results from.
@@ -215,7 +215,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
 
 
 #' @noRd
-..assert_method_ran <- function(x, method, direction = c("all", "up", "down"), ...) {
+.assert_method_ran <- function(x, method, direction = c("all", "up", "down"), ...) {
   assert_class(x, "FacileFseaAnalysisResult")
   direction <- match.arg(direction)
   if (method == "ora" && direction != "all") {

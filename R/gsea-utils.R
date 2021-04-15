@@ -75,6 +75,7 @@ leading_edge <- function(..., .combine_by = c("union", "intersect")) {
 #'
 #' This is used in place of the ES/NES mojo.
 #'
+#' @export
 #' @param x The FacileFseaAnalysisResult objects where `fgsea` was
 #'   ran.
 #' @param leading_edge Precaculated leading edge genes, as in the output from
