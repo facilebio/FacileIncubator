@@ -59,7 +59,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
   assert_number(threshold, lower = 0, upper = 1)
   assert_number(max_padj, lower = 0, upper = 1)
 
-  org.info <- multiGSEA::species_info(organism)
+  org.info <- sparrow::species_info(organism)
   orgdb <- sprintf("org.%s.eg.db", org.info$bioc_abbrev)
 
   mg.method <- .assert_method_ran(x, method, direction = direction, ...)
@@ -202,11 +202,21 @@ go_simplify.FacileFseaAnalysisResult <- function(
   assert_class(x, "FacileFseaAnalysisResult")
   ontology <- match.arg(ontology)
   mg.res <- FacileAnalysis::result(x)
-  gdb.all <- multiGSEA::geneSetDb(mg.res)
-  go.collection <- paste0("GO_", ontology)
-  gsets <- filter(
-    multiGSEA::geneSets(gdb.all),
-    .data$collection == .env$go.collection)
+  gdb.all <- sparrow::geneSetDb(mg.res)
+
+  # We try to match the go ontolgy genesets based on two criteria.
+  # 1. Legacy uses of this functionality internally at Denali, when we were
+  #    using our multiGSEA package would have had the GO_(BP|MF|CC) set in the
+  #    collection of the geneset because this is how it was returned in
+  #    multiGSEA::getMSigGeneSetDb with promote_subcategory_to_collection = TRUE
+  # 2. Newer functionality uses the sparrow/msigdbr packages to get genesets.
+  #    This uses version >= 7.4.1 of MSigDB, which appends the ontology
+  #    tree type to the name of the geneset itself (GOBP_<NAME>)
+  gsets <- sparrow::geneSets(gdb.all)
+  omatched <-
+    grepl(paste0("GO_", ontology), gsets[["collection"]]) |
+    grepl(paste0("^GO", ontology, "_"), gsets[["name"]])
+  gsets <- gsets[omatched,]
   if (nrow(gsets) == 0) {
     stop("The geneset collection was not tested: ", go.collection)
   }
@@ -222,5 +232,5 @@ go_simplify.FacileFseaAnalysisResult <- function(
     method <- paste0(method, ".", direction)
   }
   mg.res <- FacileAnalysis::result(x)
-  match.arg(method, multiGSEA::resultNames(mg.res))
+  match.arg(method, sparrow::resultNames(mg.res))
 }

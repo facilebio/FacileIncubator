@@ -1,7 +1,7 @@
 Package: FacileIncubator
 Type: Package
 Title: Incubator for half-baked ideas
-Version: 0.0.2
+Version: 0.0.3
 Authors@R: c(
     person("Steve", "Lianoglou", , "lianoglou@dnli.com", c("aut", "cre"),
       comment = c(ORCID = "0000-0002-0924-1754")),
@@ -15,20 +15,17 @@ Depends:
 Imports:
     checkmate,
     dplyr,
-    FacileAnalysis,
+    FacileAnalysis (>= 0.98.0),
+    sparrow (>= 0.98.0),
     tidyr
 Suggests:
     knitr,
+    rmarkdown,
     testthat,
     withr
 Remotes:
     facilebio/FacileAnalysis,
-    facilebio/FacileBiocData,
-    facilebio/FacileData,
-    facilebio/FacileShine,
-    facilebio/FacileViz,
-    lianos/multiGSEA@develop,
-    lianos/multiGSEA.shiny@develop
+    lianos/sparrow
 biocViews:
     DifferentialExpression,
     GeneExpression,

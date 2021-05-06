@@ -31,12 +31,12 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
   keep <- sapply(args, is, "FacileTtestFseaAnalysisResult")
   comps <- assert_list(args[keep], min.len = 2, names = "unique")
   if (is.null(gsea.method)) {
-    gsea.method <- multiGSEA::resultNames(FacileAnalysis::result(comps[[1L]]))[1L]
+    gsea.method <- sparrow::resultNames(FacileAnalysis::result(comps[[1L]]))[1L]
   }
   assert_string(gsea.method)
   for (cname in names(comps)) {
     mg.res <- FacileAnalysis::result(comps[[cname]])
-    assert_choice(gsea.method, multiGSEA::resultNames(mg.res))
+    assert_choice(gsea.method, sparrow::resultNames(mg.res))
   }
 
   dat.all <- lapply(names(comps), function(cname) {
@@ -45,7 +45,7 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
     dge <- param(gsea, "x")
 
     gs.dat <- lapply(genesets, function(gs) {
-      multiGSEA::geneSet(mg.res, name = gs) %>%
+      sparrow::geneSet(mg.res, name = gs) %>%
         transmute(group = "geneset", symbol, feature_id, logFC, pval, padj) %>%
         bind_rows(dge %>%
                     tidy() %>%

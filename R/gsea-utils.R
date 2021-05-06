@@ -99,7 +99,7 @@ leading_edge_scores <- function(x, leading_edge = NULL,
   assert_subset(c("collection", "name", "feature_id"), colnames(leading_edge))
 
   mgres <- result(x)
-  lfc <- multiGSEA::logFC(mgres)
+  lfc <- sparrow::logFC(mgres)
 
   assert_character(aggregate, min.len = 1L)
   stopifnot(sapply(aggregate, function(x) is.numeric(lfc[[x]])))
@@ -113,7 +113,7 @@ leading_edge_scores <- function(x, leading_edge = NULL,
     }) %>%
     ungroup()
 
-  rnames <- multiGSEA::resultNames(mgres)
+  rnames <- sparrow::resultNames(mgres)
   if ("fgsea" %in% rnames) {
     nes <- select(tidy(x, "fgsea"), collection, name, ES, NES)
     out <- left_join(out, nes, by = c("collection", "name"))
