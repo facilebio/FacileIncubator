@@ -2,11 +2,11 @@
 % Please edit documentation in R/geneset_shifts.R
 \name{geneset_shifts}
 \alias{geneset_shifts}
-\title{Generate geneset shift plots to compare N contrasts}
+\title{Visualizes geneset "activity" across a number of comparisons.ks}
 \usage{
 geneset_shifts(
+  x,
   genesets,
-  ...,
   gsea.method = NULL,
   colors = NULL,
   ymin = 0.005,
@@ -15,17 +15,29 @@ geneset_shifts(
   bw.gs = 0.9,
   ribbon_wrap_n = 18,
   legend.position = "none",
+  columns = c("genesets", "results"),
   xlims = NULL,
-  with_pvals = TRUE
+  with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
+  ...
 )
 }
 \arguments{
+\item{x}{A single FacileTtestFseaAnalysisResult or a named list of them.}
+
 \item{genesets}{character vector of geneset names to extract from the
 GeneSetDb objects from each results.}
 
-\item{...}{arbitrary number of named ffsea results}
-
 \item{colors}{aaaaarrrghhhhhhhhh}
+
+\item{with_stats}{A named character vector that specifies the gsea statistics
+to print in each of the results. \code{names()} correspond to the column names
+from the result table of the individual GSEA result, and the values are
+the labels you want to use for that statistic. How do you know what columns
+are available for printing? Look at the column names in the table returned
+by \code{tidy(ffsea.resut, name = gsea.method)}. By default, the nominal
+pvalue and FDR are printed. To disable, set to \code{NULL}.}
+
+\item{...}{arbitrary number of named ffsea results}
 
 \item{stats}{the name of the gsea result to pull pvalues from}
 }
@@ -39,4 +51,43 @@ by the same name in them.
 
 The row and column order are determined by the order in which ffsea results
 and genesets are provided in the respective variables.
+
+This will eventually go into the FacileAnalysis package
+}
+\examples{
+# We'll setup two ffsea (GSEA) results and plot geneset effects from each
+efds <- FacileData::exampleFacileDataSet()
+gdb.h <- sparrow::getMSigGeneSetDb("H", "human", id.type = "entrez")
+dge <- list(
+  crc = efds \%>\%
+    FacileData::filter_samples(indication == "CRC") \%>\%
+    FacileAnalysis::flm_def(
+      covariate = "sample_type", numer = "tumor", denom = "normal",
+      batch = "sex") \%>\%
+    FacileAnalysis::fdge(method = "voom"),
+ blca = efds \%>\%
+    FacileData::filter_samples(indication == "BLCA") \%>\%
+    FacileAnalysis::flm_def(
+      covariate = "sample_type", numer = "tumor", denom = "normal",
+      batch = "sex") \%>\%
+    FacileAnalysis::fdge(method = "voom"))
+gsea <- lapply(dge, FacileAnalysis::ffsea, gdb.h, "fgsea")
+
+gs.1 <- geneset_shifts(
+  gsea,
+  c("beta cells" = "HALLMARK_PANCREAS_BETA_CELLS",
+    "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
+  gsea.method = "fgsea",
+  columns = "genesets",
+  with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+gs.1$plot
+
+gs.2 <- geneset_shifts(
+  gsea,
+  c("beta cells" = "HALLMARK_PANCREAS_BETA_CELLS",
+    "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
+  gsea.method = "fgsea",
+  columns = "results",
+  with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+gs.2$plot
 }

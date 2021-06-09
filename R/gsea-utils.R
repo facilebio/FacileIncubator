@@ -14,6 +14,12 @@
 #' is more than one.
 #'
 #' @export
+#' @param ... A single (or list of) `FacileTtestAnalysisResult` objects that
+#'   have been run with `"fgsea"` that we will extract the leading edge genes
+#'   from per geneset.
+#' @param .combine_by When multiple `FacileTtestAnalysisResult` objects are
+#'   provided in `...`, are the leadeing edge genes the `"union"` of the genes
+#'   from each geneset across results, or the `"intersect"`-ion?
 leading_edge <- function(..., .combine_by = c("union", "intersect")) {
   args <- list(...)
   .combine_by <- match.arg(.combine_by)

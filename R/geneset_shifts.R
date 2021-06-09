@@ -1,6 +1,6 @@
 # Originally extracted from the app.model::compare_geneset_shifts function
-#
-#' Generate geneset shift plots to compare N contrasts
+
+#' Visualizes geneset "activity" across a number of comparisons.ks
 #'
 #' This funciton is used primarily to generate geneshift plots to compare
 #' the AppSAA model vs 5XFAD, but why not generalize ...
@@ -11,44 +11,97 @@
 #' The row and column order are determined by the order in which ffsea results
 #' and genesets are provided in the respective variables.
 #'
+#' This will eventually go into the FacileAnalysis package
+#'
 #' @export
+#' @param x A single FacileTtestFseaAnalysisResult or a named list of them.
 #' @param genesets character vector of geneset names to extract from the
 #'   GeneSetDb objects from each results.
 #' @param ... arbitrary number of named ffsea results
 #' @param stats the name of the gsea result to pull pvalues from
 #' @param colors aaaaarrrghhhhhhhhh
-geneset_shifts <- function(genesets, ..., gsea.method = NULL,
+#' @param with_stats A named character vector that specifies the gsea statistics
+#'   to print in each of the results. `names()` correspond to the column names
+#'   from the result table of the individual GSEA result, and the values are
+#'   the labels you want to use for that statistic. How do you know what columns
+#'   are available for printing? Look at the column names in the table returned
+#'   by `tidy(ffsea.resut, name = gsea.method)`. By default, the nominal
+#'   pvalue and FDR are printed. To disable, set to `NULL`.
+#' @examples
+#' # We'll setup two ffsea (GSEA) results and plot geneset effects from each
+#' efds <- FacileData::exampleFacileDataSet()
+#' gdb.h <- sparrow::getMSigGeneSetDb("H", "human", id.type = "entrez")
+#' dge <- list(
+#'   crc = efds %>%
+#'     FacileData::filter_samples(indication == "CRC") %>%
+#'     FacileAnalysis::flm_def(
+#'       covariate = "sample_type", numer = "tumor", denom = "normal",
+#'       batch = "sex") %>%
+#'     FacileAnalysis::fdge(method = "voom"),
+#'  blca = efds %>%
+#'     FacileData::filter_samples(indication == "BLCA") %>%
+#'     FacileAnalysis::flm_def(
+#'       covariate = "sample_type", numer = "tumor", denom = "normal",
+#'       batch = "sex") %>%
+#'     FacileAnalysis::fdge(method = "voom"))
+#' gsea <- lapply(dge, FacileAnalysis::ffsea, gdb.h, "fgsea")
+#'
+#' gs.1 <- geneset_shifts(
+#'   gsea,
+#'   c("beta cells" = "HALLMARK_PANCREAS_BETA_CELLS",
+#'     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
+#'   gsea.method = "fgsea",
+#'   columns = "genesets",
+#'   with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+#' gs.1$plot
+#'
+#' gs.2 <- geneset_shifts(
+#'   gsea,
+#'   c("beta cells" = "HALLMARK_PANCREAS_BETA_CELLS",
+#'     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
+#'   gsea.method = "fgsea",
+#'   columns = "results",
+#'   with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+#' gs.2$plot
+geneset_shifts <- function(x, genesets, gsea.method = NULL,
                            colors = NULL, ymin = 0.005, ymax = 0.025,
                            bw.bg = 0.7, bw.gs = 0.9,
                            ribbon_wrap_n = 18,
                            legend.position = "none",
-                           xlims = NULL, with_pvals = TRUE) {
-  args <- assert_list(list(...), min.len = 1)
-  if (length(args) == 1L) {
-    # user may have passed in an already named-list of gsea results
-    args <- args[[1L]]
+                           columns = c("genesets", "results"),
+                           xlims = NULL,
+                           with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
+                           ...) {
+  if (is(x, "FacileTtestFseaAnalysisResult")) {
+    x <- list(result = x)
+  } else {
+    x <- assert_list(x, min.len = 1, names = "unique")
   }
-  keep <- sapply(args, is, "FacileTtestFseaAnalysisResult")
-  comps <- assert_list(args[keep], min.len = 1, names = "unique")
+  kosher <- sapply(x, is, "FacileTtestFseaAnalysisResult")
+  if (any(!kosher)) {
+    stop("Illegal objects in x, all elements must be a ",
+         "FacileTtestFseaAnalysisResult")
+  }
   if (is.null(gsea.method)) {
-    gsea.method <- sparrow::resultNames(FacileAnalysis::result(comps[[1L]]))[1L]
+    gsea.method <- sparrow::resultNames(FacileAnalysis::result(x[[1L]]))[1L]
   }
   assert_string(gsea.method)
-  for (cname in names(comps)) {
-    mg.res <- FacileAnalysis::result(comps[[cname]])
+  columns <- match.arg(columns)
+
+  for (cname in names(x)) {
+    mg.res <- FacileAnalysis::result(x[[cname]])
     assert_choice(gsea.method, sparrow::resultNames(mg.res))
   }
 
-  dat.all <- lapply(names(comps), function(cname) {
-    gsea <- comps[[cname]]
+  dat.all <- lapply(names(x), function(cname) {
+    gsea <- x[[cname]]
     mg.res <- FacileAnalysis::result(gsea)
-    dge <- param(gsea, "x")
+    dge <- FacileAnalysis::param(gsea, "x")
 
     gs.dat <- lapply(genesets, function(gs) {
       sparrow::geneSet(mg.res, name = gs) %>%
         transmute(group = "geneset", symbol, feature_id, logFC, pval, padj) %>%
-        bind_rows(dge %>%
-                    tidy() %>%
+        bind_rows(FacileAnalysis::tidy(dge) %>%
                     transmute(group = "transcriptome", symbol,
                               feature_id, logFC, pval, padj)) %>%
         as_tibble() %>%
@@ -58,8 +111,9 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
 
     stat.dat <- sparrow::result(mg.res, gsea.method) %>%
       filter(name %in% genesets) %>%
-      transmute(dataset = cname, name, logFC = mean.logFC, pval, padj,
-                pvalue = sprintf("pvalue: %.02f", pval))
+      mutate(dataset = cname, .before = 1L)
+      # transmute(dataset = cname, name, logFC = mean.logFC, pval, padj,
+      #           pvalue = sprintf("pvalue: %.02f", pval))
 
     list(gs = gs.dat, stats = stat.dat)
   })
@@ -68,7 +122,7 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
     bind_rows() %>%
     mutate(
       name = factor(name, genesets),
-      dataset = factor(dataset, names(comps)),
+      dataset = factor(dataset, names(x)),
       group.density = paste0(dataset, ".density")) %>%
     as_tibble()
 
@@ -92,17 +146,18 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
     colors["geneset"] <- def.cols["geneset"]
   }
   # make sure we have colors for the foreground density
-  for (bg.name in paste0(names(comps), ".density")) {
+  for (bg.name in paste0(names(x), ".density")) {
     if (is.na(colors[bg.name])) colors[bg.name] <- def.cols["geneset"]
   }
   # make sure we hae colors for the points
-  for (cname in names(comps)) {
+  for (cname in names(x)) {
     if (is.na(colors[cname])) colors[cname] <- "cornflowerblue"
   }
 
   if (is.null(xlims)) {
     xlims <- local({
-      xl <- range(filter(dat.gs, group == "geneset")$logFC)
+      # xl <- range(filter(dat.gs, group == "geneset")$logFC)
+      xl <- range(dat.gs$logFC)
       c(xl[1] - 0.5, xl[2] + 0.5)
     })
     if (xlims[1L] > -2) xlims[1L] <- -2
@@ -142,27 +197,49 @@ geneset_shifts <- function(genesets, ..., gsea.method = NULL,
       ggplot2::aes(color = group.density), size = 1,
       bw = bw.gs,
       data = filter(dat.gs, group == "geneset")) +
-    ggplot2::facet_grid(
-      # dataset ~ name,
-      dataset ~ lname,
-      scales = "free_y",
-      switch = "y",
-      labeller = ggplot2::labeller(
-        lname = ggplot2::label_wrap_gen(ribbon_wrap_n))) +
     # ggplot2::xlim(-8.5, 15.5) +
-    scale_y_continuous(position = "right") +
+    ggplot2::scale_y_continuous(position = "right") +
     ggplot2::xlim(xlims) +
     ggplot2::scale_color_manual(values = colors) +
-    ggplot2::scale_fill_manual(values = colors) +
-    ggplot2::labs(
-      x = "log2FC",
-      y = ""
-    )
+    ggplot2::scale_fill_manual(values = colors)
 
-  if (with_pvals) {
+  if (columns == "genesets") {
+    gg <- gg +
+      ggplot2::facet_grid(
+        dataset ~ lname,
+        scales = "free_y",
+        switch = "y",
+        labeller = ggplot2::labeller(
+          lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
+          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n))) +
+      ggplot2::labs(
+        x = "log2FC",
+        y = "")
+  } else {
+    gg <- gg +
+      ggplot2::facet_grid(
+        lname ~ dataset,
+        scales = "free_x",
+        switch = "y",
+        labeller = ggplot2::labeller(
+          lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
+          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n))) +
+      ggplot2::labs(
+        x = "",
+        y = "log2FC")
+  }
+  if (!is.null(with_stats)) {
+    # names are the columns of the stats generated you want to take, and their
+    # value is what you want to name them
+    labels <- unname(with_stats)
+    cnames <- names(with_stats)
+    dat.stat$label <- sapply(1:nrow(dat.stat), function(i) {
+      paste(sprintf("%s: %0.3f", labels, dat.stat[i, cnames]), collapse = "\n")
+    })
     gg <- gg +
       ggplot2::geom_text(
-        mapping = aes(x = -Inf, y = Inf, label = pvalue),
+        mapping = ggplot2::aes(
+          x = -Inf, y = Inf, label = label),
         hjust = -0.1, vjust = 1.2,
         data = dat.stat)
   }
