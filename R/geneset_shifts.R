@@ -197,11 +197,13 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
       ggplot2::aes(color = group.density), size = 1,
       bw = bw.gs,
       data = filter(dat.gs, group == "geneset")) +
-    # ggplot2::xlim(-8.5, 15.5) +
     ggplot2::scale_y_continuous(position = "right") +
     ggplot2::xlim(xlims) +
     ggplot2::scale_color_manual(values = colors) +
-    ggplot2::scale_fill_manual(values = colors)
+    ggplot2::scale_fill_manual(values = colors) +
+    ggplot2::labs(
+      x = "log2FC",
+      y = "")
 
   if (columns == "genesets") {
     gg <- gg +
@@ -211,10 +213,7 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
         switch = "y",
         labeller = ggplot2::labeller(
           lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
-          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n))) +
-      ggplot2::labs(
-        x = "log2FC",
-        y = "")
+          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n)))
   } else {
     gg <- gg +
       ggplot2::facet_grid(
@@ -223,11 +222,9 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
         switch = "y",
         labeller = ggplot2::labeller(
           lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
-          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n))) +
-      ggplot2::labs(
-        x = "",
-        y = "log2FC")
+          dataset = ggplot2::label_wrap_gen(ribbon_wrap_n)))
   }
+
   if (!is.null(with_stats)) {
     # names are the columns of the stats generated you want to take, and their
     # value is what you want to name them
@@ -243,6 +240,7 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
         hjust = -0.1, vjust = 1.2,
         data = dat.stat)
   }
+
   gg <- gg + ggplot2::theme(legend.position = legend.position)
 
   list(
