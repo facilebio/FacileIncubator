@@ -70,6 +70,8 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
                            legend.position = "none",
                            columns = c("genesets", "results"),
                            xlims = NULL,
+                           facet_scales = "free",
+                           trim = 0.02,
                            with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
                            ...) {
   if (is(x, "FacileTtestFseaAnalysisResult")) {
@@ -87,6 +89,8 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
   }
   assert_string(gsea.method)
   columns <- match.arg(columns)
+
+  assert_number(trim, lower = 0, upper = 0.4, null.ok = TRUE)
 
   for (cname in names(x)) {
     mg.res <- FacileAnalysis::result(x[[cname]])
@@ -114,6 +118,15 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
       mutate(dataset = cname, .before = 1L)
       # transmute(dataset = cname, name, logFC = mean.logFC, pval, padj,
       #           pvalue = sprintf("pvalue: %.02f", pval))
+
+    # if (!is.null(trim)) {
+    #   lfc.bg <- filter(gs.dat, group == "transcriptome")$logFC
+    #   lfc.gs <- filter(gs.dat, group != "transcriptome")$logFC
+    #   f.posts <- quantile(lfc.bg, c(trim, 1 - trim))
+    #   f.posts[1] <- min(f.posts[1], min(lfc.gs))
+    #   f.posts[2] <- max(f.posts[2], max(lfc.gs))
+    #   gs.dat <- filter(gs.dat, logFC >= f.posts[1] & logFC <= f.posts[2])
+    # }
 
     list(gs = gs.dat, stats = stat.dat)
   })
@@ -154,20 +167,20 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
     if (is.na(colors[cname])) colors[cname] <- "cornflowerblue"
   }
 
-  if (is.null(xlims)) {
-    xlims <- local({
-      # xl <- range(filter(dat.gs, group == "geneset")$logFC)
-      xl <- range(dat.gs$logFC)
-      c(xl[1] - 0.5, xl[2] + 0.5)
-    })
-    if (xlims[1L] > -2) xlims[1L] <- -2
-    if (xlims[2L] < 2) xlims[2L] <- 2
-  }
+  # if (is.null(xlims)) {
+  #   xlims <- local({
+  #     # xl <- range(filter(dat.gs, group == "geneset")$logFC)
+  #     xl <- range(dat.gs$logFC)
+  #     c(xl[1] - 0.5, xl[2] + 0.5)
+  #   })
+  #   if (xlims[1L] > -2) xlims[1L] <- -2
+  #   if (xlims[2L] < 2) xlims[2L] <- 2
+  # }
 
 
   if (!is.null(names(genesets))) {
     label <- setNames(names(genesets), unname(genesets))
-    nolabel <- is.na(label)
+    nolabel <- is.na(label) | nchar(label) == 0L
     if (any(nolabel)) {
       label[nolabel] <- names(label)[nolabel]
     }
@@ -198,7 +211,6 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
       bw = bw.gs,
       data = filter(dat.gs, group == "geneset")) +
     ggplot2::scale_y_continuous(position = "right") +
-    ggplot2::xlim(xlims) +
     ggplot2::scale_color_manual(values = colors) +
     ggplot2::scale_fill_manual(values = colors) +
     ggplot2::labs(
@@ -209,7 +221,7 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
     gg <- gg +
       ggplot2::facet_grid(
         dataset ~ lname,
-        scales = "free_y",
+        scales = facet_scales,
         switch = "y",
         labeller = ggplot2::labeller(
           lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
@@ -218,11 +230,15 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
     gg <- gg +
       ggplot2::facet_grid(
         lname ~ dataset,
-        scales = "free_x",
+        scales = facet_scales,
         switch = "y",
         labeller = ggplot2::labeller(
           lname = ggplot2::label_wrap_gen(ribbon_wrap_n),
           dataset = ggplot2::label_wrap_gen(ribbon_wrap_n)))
+  }
+
+  if (is.numeric(xlims)) {
+    gg <- gg + ggplot2::xlim(xlims)
   }
 
   if (!is.null(with_stats)) {
@@ -241,7 +257,10 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
         data = dat.stat)
   }
 
-  gg <- gg + ggplot2::theme(legend.position = legend.position)
+  gg <- gg + ggplot2::theme(
+    legend.position = legend.position,
+    panel.grid.major = ggplot2::element_blank(),
+    panel.grid.minor = ggplot2::element_blank())
 
   list(
     dat.gs = dat.gs,
