@@ -56,7 +56,8 @@ leading_edge <- function(..., .combine_by = c("union", "intersect")) {
     group_by(collection, name) %>%
     add_count(feature_id, name = "ncomps") %>%
     ungroup() %>%
-    select(-comp)
+    select(-comp) %>%
+    arrange(collection, name, desc(ncomps))
 
   if (.combine_by == "intersect") {
     out <- filter(universe, ncomps == length(res.all))

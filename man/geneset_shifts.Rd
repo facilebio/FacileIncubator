@@ -17,6 +17,8 @@ geneset_shifts(
   legend.position = "none",
   columns = c("genesets", "results"),
   xlims = NULL,
+  facet_scales = "free",
+  trim = 0.02,
   with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
   ...
 )

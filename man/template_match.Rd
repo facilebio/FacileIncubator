@@ -55,7 +55,7 @@ GOTO: FacileAnalysis
 Imagine we have several timepoints encoded in a 'group' covariate.
 you can run an nova to find genes that have some association w/ time,
 then find ones within that result that match your template (let's say
-ones that increase over time\if{html}{\out{<div class="r">}}\preformatted{increasing <- fds \%>\%
+ones that increase over time\if{html}{\out{<div class="sourceCode r">}}\preformatted{increasing <- fds \%>\%
   flm_def("group") \%>\%
   fdge() \%>\%
   template_match("ascending)
