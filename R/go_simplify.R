@@ -38,14 +38,15 @@ go_simplify.default <- function(x, method = NULL,
 #' @noRd
 #' @export
 go_simplify.FacileFseaAnalysisResult <- function(
-  x, method = param(x, "methods")[1L], ontology = c("BP", "MF", "CC"),
+  x, method = FacileAnalysis::param(x, "methods")[1L],
+  ontology = c("BP", "MF", "CC"),
   direction = c("all", "up", "down"),
   similarity = c("Resnik", "Lin", "Rel", "Jiang", "Wang"),
   threshold = 0.7, max_padj = 0.10, min_size = 1, max_size = Inf,
   score_by = NULL, semdata = NULL, organism = NULL, ..., verbose = FALSE) {
   if (is.null(organism)) organism <- FacileData::organism(x)
 
-  from <- param(x, "x") # the thing the ffsea was calculated from
+  from <- FacileAnalysis::param(x, "x") # the thing ffsea was calculated from
 
   ontology <- match.arg(ontology)
   direction <- match.arg(direction)
@@ -54,7 +55,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
     stop("There is no up/down directionality from an ANOVA result")
   }
 
-  x.input <- param(x, "x")
+  x.input <- FacileAnalysis::param(x, "x")
   similarity <- match.arg(similarity)
   assert_number(threshold, lower = 0, upper = 1)
   assert_number(max_padj, lower = 0, upper = 1)
@@ -80,7 +81,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
   }
   score_by <- match.arg(score_by, score.opts)
 
-  mstats <- tidy(x, mg.method)
+  mstats <- FacileAnalysis::tidy(x, mg.method)
   rstats.all <- transmute(
     mstats,
     collection, name, pval,
