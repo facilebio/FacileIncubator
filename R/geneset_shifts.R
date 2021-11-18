@@ -261,7 +261,9 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
   gg <- gg + ggplot2::theme(
     legend.position = legend.position,
     panel.grid.major = ggplot2::element_blank(),
-    panel.grid.minor = ggplot2::element_blank())
+    panel.grid.minor = ggplot2::element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank())
 
   list(
     dat.gs = dat.gs,
