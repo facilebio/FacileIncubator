@@ -21,8 +21,8 @@
 #' @param stats the name of the gsea result to pull pvalues from
 #' @param colors aaaaarrrghhhhhhhhh
 #' @param with_stats A named character vector that specifies the gsea statistics
-#'   to print in each of the results. `names()` correspond to the column names
-#'   from the result table of the individual GSEA result, and the values are
+#'   to print in each of the results. The values correspond to the column names
+#'   from the result table of the individual GSEA result, and the `names()` are
 #'   the labels you want to use for that statistic. How do you know what columns
 #'   are available for printing? Look at the column names in the table returned
 #'   by `tidy(ffsea.resut, name = gsea.method)`. By default, the nominal
@@ -52,7 +52,7 @@
 #'     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
 #'   gsea.method = "fgsea",
 #'   columns = "genesets",
-#'   with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+#'   with_stats = c("pvalue" = "pval", "FDR" = "padj", NES = "NES"))
 #' gs.1$plot
 #'
 #' gs.2 <- geneset_shifts(
@@ -61,7 +61,7 @@
 #'     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
 #'   gsea.method = "fgsea",
 #'   columns = "results",
-#'   with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+#'   with_stats = c("pvalue" = "pval", "FDR" = "padj", NES = "NES"))
 #' gs.2$plot
 geneset_shifts <- function(x, genesets, gsea.method = NULL,
                            colors = NULL, ymin = 0.005, ymax = 0.025,
@@ -72,7 +72,7 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
                            xlims = NULL,
                            facet_scales = "free",
                            trim = 0.02,
-                           with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
+                           with_stats = c("pvalue" = "pval", "FDR" = "padj.by.collection"),
                            ...) {
   if (is(x, "FacileTtestFseaAnalysisResult")) {
     x <- list(result = x)
@@ -242,13 +242,14 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
   }
 
   if (!is.null(with_stats)) {
-    # names are the columns of the stats generated you want to take, and their
-    # value is what you want to name them
-    labels <- unname(with_stats)
-    cnames <- names(with_stats)
+    # values are the  column names from the stats table generated ffsea
+    # names are the labels you want to rename the columns to
+    labels <- names(with_stats)
+    cnames <- unname(with_stats)
     dat.stat$label <- sapply(1:nrow(dat.stat), function(i) {
       paste(sprintf("%s: %0.3f", labels, dat.stat[i, cnames]), collapse = "\n")
     })
+
     gg <- gg +
       ggplot2::geom_text(
         mapping = ggplot2::aes(

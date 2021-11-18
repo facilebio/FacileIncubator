@@ -219,7 +219,7 @@ go_simplify.FacileFseaAnalysisResult <- function(
     grepl(paste0("^GO", ontology, "_"), gsets[["name"]])
   gsets <- gsets[omatched,]
   if (nrow(gsets) == 0) {
-    stop("The geneset collection was not tested: ", go.collection)
+    stop("The geneset collection was not tested: ", ontology)
   }
   dplyr::select(gsets, collection, name, gs_id)
 }
