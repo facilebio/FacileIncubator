@@ -1,0 +1,6 @@
+type,group,name,dataset,covariate,numer,denom,batch,sample_key,subset_covariate,subset_values
+direct,cancer,cancer_blca,BLCA,sample_type,tumor,normal,sex,,,
+direct,cancer,cancer_coad,COAD,sample_type,tumor,normal,sex,,,
+direct,sex,sex_normal,BLCA,sex,f,m,,,sample_type,normal
+direct,sex,sex_tumor,BLCA,sex,f,m,,,sample_type,tumor
+interaction,sexi_blca,sex_tumor_blca,BLCA,,sex_tumor,sex_normal
