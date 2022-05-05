@@ -1,6 +1,35 @@
 library(shiny)
 
+# https://github.com/Appsilon/dynamic-shiny-modules/blob/3b05aad99f633103788b62a94d8ed198ce4b977b/after.R
+remove_shiny_inputs <- function(id, .input) {
+  invisible(
+    lapply(grep(id, names(.input), value = TRUE), function(i) {
+      .subset2(.input, "impl")$.values$remove(i)
+    })
+  )
+}
+
+remove_observers <- function(id, .session) {
+  invisible(
+    lapply(grep(paste0(id, "_observer"), names(.session$userData), value = TRUE),
+           function(i) {
+             .subset2(.session$userData, i)$destroy()
+           })
+  )
+}
+
+module_UI <- function(id, ui) {
+  ns <- NS(id)
+  div(id = id, ui)
+}
+
 shinyServer(function(input, output, session) {
+  
+  module_stack <- reactiveVal(NULL)
+  
+  observe({
+    shinyjs::disable("remove_module")
+  })
   
   debug <- FALSE
   bs4dash <- getOption("facile.bs4dash")
@@ -32,8 +61,15 @@ shinyServer(function(input, output, session) {
     )
   })
     
-  observeEvent(input$analysis, {
+  observeEvent(input$add_module, {
     req(input$analysis != "none")
+    
+    # store the id of the newly added module using the 
+    # value of the actionButton to make it unique
+    module_id <- paste0("id_", input$add_module)
+    if (debug) print(paste0("this module is ", module_id))
+    module_stack(c(module_id, module_stack()))
+    
     ui.content <- analysisUI()("analysis", debug = debug)
     
     ui <- tagList(
@@ -42,8 +78,26 @@ shinyServer(function(input, output, session) {
       ui.content
     )
     
+    ui_with_id <- module_UI(module_id, ui)
+    
     ## NOTE: immediate = TRUE is necessary!
-    insertUI("#here", "afterEnd", ui, immediate = TRUE)
+    insertUI("#gadget_container", "afterEnd", ui_with_id, immediate = TRUE)
+    
+    shinyjs::disable("add_module")
+    shinyjs::enable("remove_module")
+  })
+  
+  observeEvent(input$remove_module, {
+    if (length(module_stack()) > 0) {
+      if (debug) print(paste0("removing module ", module_stack()[1]))
+      removeUI(paste0("#", module_stack()[1]))
+    }
+    remove_shiny_inputs(module_stack()[1], input)
+    remove_observers(module_stack()[1], session)
+    module_stack(module_stack()[-1])
+    
+    shinyjs::enable("add_module")
+    shinyjs::disable("remove_module")
   })
   
   ## this logic should be isolated into a function
@@ -73,11 +127,12 @@ shinyServer(function(input, output, session) {
     checkmate::assert_class(fds., "FacileDataStore")
     checkmate::assert_class(samples., "facile_frame")
     
-    FacileShine:::ReactiveFacileDataStore(fds., "ds", samples = samples.)
+    FacileShine::ReactiveFacileDataStore(fds., "ds", samples = samples.)
   })
   
-  observe({
+  observeEvent(req(input$add_module), {
     req(input$analysis != "none")
+    if (debug) print("running analysis")
     analysis <- callModule(analysisModule(), "analysis", rfds(), debug = debug)
   })
   
