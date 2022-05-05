@@ -19,7 +19,10 @@ shinyUI(fluidPage(
                                                selected = "none"
                      ),
                      actionButton("add_module", "Add", icon = icon("plus-circle")),
-                     actionButton("remove_module", "Remove", icon = icon("trash-alt"))
+                     actionButton("remove_module", "Remove", icon = icon("trash-alt")),
+                     br(),
+                     h4("Results:"),
+                     tableOutput("results_list")
         ),
         
         mainPanel(

@@ -26,6 +26,7 @@ module_UI <- function(id, ui) {
 shinyServer(function(input, output, session) {
   
   module_stack <- reactiveVal(NULL)
+  results_stack <- reactiveVal(data.frame(id = integer(), analysis = character()))
   
   observe({
     shinyjs::disable("remove_module")
@@ -134,6 +135,11 @@ shinyServer(function(input, output, session) {
     req(input$analysis != "none")
     if (debug) print("running analysis")
     analysis <- callModule(analysisModule(), "analysis", rfds(), debug = debug)
+    results_stack(rbind(results_stack(), data.frame(id = input$add_module, type = input$analysis)))
+  })
+  
+  output$results_list <- renderTable({
+    if (NROW(results_stack()) > 0) results_stack() else NULL
   })
   
 })
