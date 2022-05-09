@@ -9,12 +9,12 @@ shinyUI(fluidPage(
         sidebarPanel(width = 3,
                      shinyjs::useShinyjs(),
                      shinyWidgets::pickerInput("dataset",
-                                               "Select a dataset",
+                                               "Select an input:",
                                                choices = "TCGA",
                                                selected = "TCGA"
                      ),
                      shinyWidgets::pickerInput("analysis",
-                                               "Select an analysis:",
+                                               "Select an output:",
                                                choices = c("none", "fdge", "fpca", "ffsea"),
                                                selected = "none"
                      ),

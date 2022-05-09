@@ -26,7 +26,8 @@ module_UI <- function(id, ui) {
 shinyServer(function(input, output, session) {
   
   module_stack <- reactiveVal(NULL)
-  results_stack <- reactiveVal(data.frame(id = integer(), analysis = character()))
+  temp_result <- reactiveVal(NULL)
+  results_stack <- reactiveVal(tibble::tibble(id = character(), analysis = character(), result = list()))
   
   observe({
     shinyjs::disable("remove_module")
@@ -40,7 +41,7 @@ shinyServer(function(input, output, session) {
   x <- reactive({
     switch(req(input$dataset),
            "TCGA" = FacileData:::exampleFacileDataSet(),
-           NULL
+           results_stack()[results_stack()$id == input$dataset, "result", drop = TRUE][[1]]
     )
   })
   
@@ -104,7 +105,6 @@ shinyServer(function(input, output, session) {
   ## this logic should be isolated into a function
   rfds <- reactive({
     req(input$analysis != "none")
-    
     .x <- x()
     if (is(.x, "facile_frame")) {
       fds. <- FacileData::fds(.x)
@@ -131,15 +131,31 @@ shinyServer(function(input, output, session) {
     FacileShine::ReactiveFacileDataStore(fds., "ds", samples = samples.)
   })
   
-  observeEvent(req(input$add_module), {
-    req(input$analysis != "none")
-    if (debug) print("running analysis")
-    analysis <- callModule(analysisModule(), "analysis", rfds(), debug = debug)
-    results_stack(rbind(results_stack(), data.frame(id = input$add_module, type = input$analysis)))
+  module_res <- reactive({
+    callModule(analysisModule(), "analysis", rfds(), aresult = rfds(), gdb = reactive(sparrow::exampleGeneSetDb()), debug = debug)
+  })
+  
+  observeEvent(input$add_module, {
+    req(module_res())
+    result. <- sparrow::failWith(list(), FacileAnalysis::unreact(FacileAnalysis::faro(module_res())))
+    # class(result.) <- FacileAnalysis:::classify_as_gadget(result.)
+    temp_result(result.)
+    
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
+  
+  observeEvent(input$remove_module, {
+    results_stack(
+      rbind(
+        results_stack(), 
+        tibble::tibble(id = paste0("result_", input$add_module), analysis = input$analysis, result = list(temp_result()))
+      )
+    )
+    
+    shinyWidgets::updatePickerInput(session, "dataset", choices = c("TCGA", results_stack()$id))
   })
   
   output$results_list <- renderTable({
-    if (NROW(results_stack()) > 0) results_stack() else NULL
+    if (NROW(results_stack()) > 0) results_stack()[, c("id", "analysis")] else NULL
   })
   
 })
