@@ -10,16 +10,16 @@ shinyUI(fluidPage(
                      shinyjs::useShinyjs(),
                      shinyWidgets::pickerInput("dataset",
                                                "Select an input:",
-                                               choices = "TCGA",
+                                               choices = c("TCGA"),
                                                selected = "TCGA"
                      ),
                      shinyWidgets::pickerInput("analysis",
                                                "Select an output:",
-                                               choices = c("none", "fdge", "fpca", "ffsea"),
+                                               choices = c("none", "filter", "fdge", "fpca", "ffsea"),
                                                selected = "none"
                      ),
                      actionButton("add_module", "Add", icon = icon("plus-circle")),
-                     actionButton("remove_module", "Remove", icon = icon("trash-alt")),
+                     actionButton("remove_module", "Done", icon = icon("check-circle")),
                      br(),
                      h4("Results:"),
                      tableOutput("results_list")
