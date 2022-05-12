@@ -112,13 +112,8 @@ shinyServer(function(input, output, session) {
     req(input$analysis != "none")
     
     .x <- x()
-    if (is(.x, "ReactiveFacileDataStore")) {
-      fds. <- .x$.state$fds
-      samples. <- .x$.state$active_samples
-    } else {
-      fds. <- FacileData::fds(.x)
-      samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
-    }
+    fds. <- FacileData::fds(.x)
+    samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
     
     checkmate::assert_class(fds., "FacileDataStore")
     checkmate::assert_class(samples., "facile_frame")
