@@ -39,16 +39,10 @@ shinyServer(function(input, output, session) {
   on.exit(options(facile.bs4dash = bs4dash))
   
   x <- eventReactive(input$dataset, {
-    d <- switch(req(input$dataset),
+    switch(req(input$dataset),
            "TCGA" = FacileData:::exampleFacileDataSet(),
            results_stack()[results_stack()$id == input$dataset, "result", drop = TRUE][[1]]
     )
-    if (is(d, "ReactiveFacileAnalysisResultContainer")) {
-      .x <- FacileAnalysis::faro(d)
-    } else {
-      .x <- d
-    }
-    .x
   })
   
   analysisModule <- reactive({
@@ -118,36 +112,14 @@ shinyServer(function(input, output, session) {
     req(input$analysis != "none")
     
     .x <- x()
-    if (is(.x, "facile_frame")) {
-      if (debug) print("facile_frame")
-      fds. <- FacileData::fds(.x)
-      samples. <- .x
-      sample.filter <- FALSE
-      restrict_samples <- samples.
-    } else if (is(.x, "ReactiveFacileDataStore")) {
-      if (debug) print("reactivefaciledatastore")
+    if (is(.x, "ReactiveFacileDataStore")) {
       fds. <- .x$.state$fds
       samples. <- .x$.state$active_samples
-    } else if (is(.x, "FacileDataStore")) {
-      if (debug) print("facileDataStore")
-      sample.filter <- TRUE
-      fds. <- .x
-      samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
-    } else if (is(.x, "FacileAnalysisResult")) {
-      if (debug) print("facileAnalysisResult")
-      # ugh, this isn't going to work -- I'm writing this in to fire up a
-      # ffseaGadget, whose needs to be a FacileAnalysisResult.
-      sample.filter <- FALSE
-      fds. <- FacileData::fds(.x[["fds"]])
-      samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
-      restrict_samples <- samples.
-    } else if (is(.x, "ReactiveFacileAnalysisResultContainer")) {
-      if (debug) print("result container")
-      fds. <- .x
-      samples. <- dplyr::collect(FacileData::samples(fds.), n = Inf)
     } else {
-      stop("What in the world?")
+      fds. <- FacileData::fds(.x)
+      samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
     }
+    
     checkmate::assert_class(fds., "FacileDataStore")
     checkmate::assert_class(samples., "facile_frame")
 
@@ -177,10 +149,17 @@ shinyServer(function(input, output, session) {
   })
   
   observeEvent(input$remove_module, {
+    
+    if (is(req(module_res()), "ReactiveFacileDataStore")) {
+      res <- module_res()
+    } else {
+      res <- FacileAnalysis::faro(module_res())
+    }
+    
     results_stack(
       rbind(
         results_stack(), 
-        tibble::tibble(id = paste0("result_", input$add_module), analysis = input$analysis, result = list(req(module_res())))
+        tibble::tibble(id = paste0("result_", input$add_module), analysis = input$analysis, result = list(res))
       )
     )
     if (debug) {
