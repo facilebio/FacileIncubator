@@ -114,7 +114,13 @@ shinyServer(function(input, output, session) {
     
     .x <- x()
     fds. <- FacileData::fds(.x)
-    samples. <- dplyr::collect(FacileData::samples(.x), n = Inf)
+    
+    if (is(fds., "BoxedFacileDataStore")) {
+      samples. <- FacileShine::active_samples(.x)
+    } else {
+      samples. <- FacileData::samples(.x)
+    }
+    samples. <- dplyr::collect(samples., n= Inf)
     
     checkmate::assert_class(fds., "FacileDataStore")
     checkmate::assert_class(samples., "facile_frame")
