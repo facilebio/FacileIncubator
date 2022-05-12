@@ -74,12 +74,13 @@ shinyServer(function(input, output, session) {
     if (debug) print(paste0("this module is ", module_id))
     module_stack(c(module_id, module_stack()))
     
-    ui.content <- analysisUI()(ifelse(isolate(req(input$analysis)) == "filter","ds","analysis"), debug = debug)
+    context_id <- ifelse(isolate(req(input$analysis)) == "filter", "rfds", "analysis")
+    ui.content <- analysisUI()(context_id, debug = debug)
     
     ui <- tagList(
       ui.content
     )
-    
+
     ui_with_id <- module_UI(module_id, ui)
     
     ## NOTE: immediate = TRUE is necessary!
@@ -118,22 +119,21 @@ shinyServer(function(input, output, session) {
     checkmate::assert_class(fds., "FacileDataStore")
     checkmate::assert_class(samples., "facile_frame")
 
-    FacileShine::ReactiveFacileDataStore(fds., "ds", samples = samples.)
+    FacileShine::ReactiveFacileDataStore(fds., "rfds", samples = samples., debug = debug)
   })
   
   module_res <- reactive({
-    res <- callModule(analysisModule(), 
-               id = ifelse(req(input$analysis) == "filter", "ds", "analysis"),
-               rfds = rfds(), 
-               aresult = x(), 
-               gdb = reactive({sparrow::exampleGeneSetDb()}), 
-               path= reactive(rfds()[["parent.dir"]]),
-               debug = debug
-    )
     if (req(input$analysis) == "filter") {
-      return(rfds())
+      rfds()
     } else {
-      return(res)
+      callModule(analysisModule(), 
+                 id = "analysis",
+                 rfds = rfds(), 
+                 aresult = x(), 
+                 gdb = reactive({sparrow::exampleGeneSetDb()}), 
+                 path= reactive(rfds()[["parent.dir"]]),
+                 debug = debug
+      )
     }
   })
   
