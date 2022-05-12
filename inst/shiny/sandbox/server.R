@@ -26,7 +26,13 @@ module_UI <- function(id, ui) {
 shinyServer(function(input, output, session) {
   
   module_stack <- reactiveVal(NULL)
-  results_stack <- reactiveVal(tibble::tibble(id = character(), analysis = character(), result = list()))
+  results_stack <- reactiveVal(
+    tibble::tibble(
+      id = character(), 
+      analysis = character(), 
+      result = list()
+    )
+  )
   
   observe({
     shinyjs::disable("remove_module")
@@ -129,12 +135,6 @@ shinyServer(function(input, output, session) {
   module_res <- reactive({
     if (req(input$analysis) == "filter") {
       rfds()
-      # callModule(analysisModule(), 
-      #            id = "analysis",
-      #            gdb = reactive({sparrow::exampleGeneSetDb()}), 
-      #            path= reactive(FacileData::fds(x())[["parent.dir"]]),
-      #            debug = debug
-      # )
     } else {
       callModule(analysisModule(), 
                  id = "analysis",
@@ -164,7 +164,11 @@ shinyServer(function(input, output, session) {
     results_stack(
       rbind(
         results_stack(), 
-        tibble::tibble(id = paste0("result_", input$add_module), analysis = input$analysis, result = list(res))
+        tibble::tibble(
+          id = paste0("result_", input$add_module), 
+          analysis = input$analysis, 
+          result = list(res)
+        )
       )
     )
     if (debug) {
@@ -172,7 +176,11 @@ shinyServer(function(input, output, session) {
       print(results_stack())
     }
     
-    shinyWidgets::updatePickerInput(session, "dataset", choices = c("TCGA", results_stack()$id), selected = input$dataset)
+    shinyWidgets::updatePickerInput(
+      session, "dataset", 
+      choices = c("TCGA", results_stack()$id), 
+      selected = input$dataset
+    )
   })
   
   output$results_list <- renderTable({
