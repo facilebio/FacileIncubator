@@ -5,13 +5,17 @@
 #'
 #' TODO: support batch correction over data retrieved from `x`
 #' @export
-fheatmap <- function(x, gdb = NULL, rename_rows = NULL, ...) {
+fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...) {
   if (is(x, "facile_frame")) {
     if (is(gdb, "GeneSetDb")) {
       fids <- sparrow::featureIds(gdb)
     } else {
       fids <- NULL
     }
+    # TODO: 
+    #   1. User should be able to specify assay to use for fheatmap
+    #   2. the `class` param (DGEList) should be passed in here, with an
+    #      attempt to guess what it is if missing, based on assay_type
     x <- FacileData::biocbox(x, "DGEList", features = fids)
     x <- edgeR::calcNormFactors(x)
   }
