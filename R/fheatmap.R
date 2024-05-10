@@ -5,7 +5,10 @@
 #'
 #' TODO: support batch correction over data retrieved from `x`
 #' @export
-fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...) {
+#' @param colors a list of named color vectors. Names should correspond to
+#'   columns in row or column annotation dataframes(?)
+fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
+                     colors = NULL) {
   if (is(x, "facile_frame")) {
     if (is(gdb, "GeneSetDb")) {
       fids <- sparrow::featureIds(gdb)
@@ -16,7 +19,8 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...) 
     #   1. User should be able to specify assay to use for fheatmap
     #   2. the `class` param (DGEList) should be passed in here, with an
     #      attempt to guess what it is if missing, based on assay_type
-    x <- FacileData::biocbox(x, "DGEList", features = fids)
+    x <- FacileData::biocbox(x, "DGEList", features = fids,
+                             assay_name = assay_name)
     x <- edgeR::calcNormFactors(x)
   }
   if (test_character(rename_rows)) {
@@ -33,5 +37,24 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...) 
     assert_multi_class(rename_rows, c("data.frame", "tbl"))
     stopifnot(ncol(rename_rows) == 2)
   }
-  sparrow::mgheatmap2(x, gdb = gdb, rename.rows = rename_rows, ...)
+  
+  dots <- list(...)
+  if (!is.null(dots$top_annotation)) {
+    assert_character(dots$top_annotation)
+    assert_subset(dots$top_annotation, colnames(x$samples))
+    ta <- x$samples[, dots$top_annotation, drop = FALSE]
+    tcols <- NULL
+    if (is.list(colors)) {
+      cnames <- intersect(names(colors), colnames(ta))
+      if (length(cnames) > 0) {
+        tcols <- colors[cnames]
+      }
+    }
+    taa <- ComplexHeatmap::HeatmapAnnotation(df = ta, col = tcols)
+    dots$top_annotation <- taa
+  }
+  dots$x <- x
+  dots$gdb <- gdb
+  dots$rename.rows <- rename_rows
+  do.call(sparrow::mgheatmap2, dots)
 }
