@@ -62,7 +62,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
     if (!is.null(ranno)) {
       assert_class(ranno, "data.frame")
       assert_set_equal(rownames(ranno), rownames(x))
-      ranno <- ranno[rownames(x), ]
+      ranno <- ranno[rownames(x),,drop = FALSE]
       rcols <- NULL
       if (is.list(colors)) {
         cnames <- intersect(names(colors), colnames(ranno))
