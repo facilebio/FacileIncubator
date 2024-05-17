@@ -24,7 +24,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
                              assay_name = assay_name)
     x <- edgeR::calcNormFactors(x)
     stopifnot(setequal(sample.order, colnames(x)))
-    x <- x[, sample.order, drop = FALSE]
+    x <- x[, sample.order]
   }
   if (test_character(rename_rows)) {
     stopifnot(
