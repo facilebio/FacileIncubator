@@ -126,7 +126,7 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
     }
     
     # Set this up so we can order the data.frame in the way requested by user
-    gdbc.df$key <- encode_gskey(gdbc.df)
+    gdbc.df$key <- sparrow::encode_gskey(gdbc.df)
   }
   
   if (aggregate.by == "none") {
@@ -146,15 +146,15 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
                               center = FALSE, scale = FALSE,
                               uncenter = center., unscale = scale., ...)
     } else {
-      xs <- setDT(scores[scores[['method']] == aggregate.by,,drop=FALSE])
-      xs[, key:= encode_gskey(xs)]
-      xw <- dcast(xs, key ~ sample_id, value.var = "score")
+      xs <- data.table::setDT(scores[scores[['method']] == aggregate.by,,drop=FALSE])
+      xs[, key := sparrow::encode_gskey(xs)]
+      xw <- data.table::dcast(xs, key ~ sample_id, value.var = "score")
       xw <- unique(xw, by = "key")
       X <- as.matrix(xw[, -1, with = FALSE])
       rownames(X) <- xw[[1]]
     }
     # If we want to split, it (only?) makes sense to split by collection
-    split <- if (split) split_gskey(rownames(X))$collection else NULL
+    split <- if (split) sparrow::split_gskey(rownames(X))$collection else NULL
   }
   
   if (!isFALSE(recenter) || !isFALSE(rescale)) {
