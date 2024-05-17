@@ -15,6 +15,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
     } else {
       fids <- NULL
     }
+    sample.order <- paste(x$dataset, x$sample_id, sep ="__")
     # TODO: 
     #   1. User should be able to specify assay to use for fheatmap
     #   2. the `class` param (DGEList) should be passed in here, with an
@@ -22,6 +23,8 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
     x <- FacileData::biocbox(x, "DGEList", features = fids,
                              assay_name = assay_name)
     x <- edgeR::calcNormFactors(x)
+    stopifnot(setequal(sample.order, colnames(x)))
+    x <- x[, sample.order, drop = FALSE]
   }
   if (test_character(rename_rows)) {
     stopifnot(
