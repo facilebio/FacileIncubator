@@ -56,8 +56,28 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
     taa <- ComplexHeatmap::HeatmapAnnotation(df = ta, col = tcols)
     dots$top_annotation <- taa
   }
+  
+  for (aname in c("right_annotation", "left_annotation")) {
+    ranno <- dots[[aname]]
+    if (!is.null(ranno) {
+      assert_class(ranno, "data.frame")
+      assert_set_equal(rownames(ranno), rownames(x))
+      ranno <- ranno[rownames(x), ]
+      rcols <- NULL
+      if (is.list(colors)) {
+        cnames <- intersect(names(colors), colnames(ranno))
+        rcols <- colors[cnames]
+      }
+      ra <- ComplexHeatmap::HeatmapAnnotation(
+        df = ranno,
+        col = rcols,
+        which = "row")
+      dots[[aname]] <- ra
+    }
+  }
   dots$x <- x
   dots$gdb <- gdb
   dots$rename.rows <- rename_rows
+  
   do.call(sparrow::mgheatmap2, dots)
 }
