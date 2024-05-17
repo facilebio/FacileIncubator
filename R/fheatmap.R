@@ -59,7 +59,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
   
   for (aname in c("right_annotation", "left_annotation")) {
     ranno <- dots[[aname]]
-    if (!is.null(ranno) {
+    if (!is.null(ranno)) {
       assert_class(ranno, "data.frame")
       assert_set_equal(rownames(ranno), rownames(x))
       ranno <- ranno[rownames(x), ]
