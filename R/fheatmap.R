@@ -16,7 +16,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
       fids <- NULL
     }
     sample.order <- paste(x$dataset, x$sample_id, sep ="__")
-    # TODO: 
+    # TODO:
     #   1. User should be able to specify assay to use for fheatmap
     #   2. the `class` param (DGEList) should be passed in here, with an
     #      attempt to guess what it is if missing, based on assay_type
@@ -40,7 +40,7 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
     assert_multi_class(rename_rows, c("data.frame", "tbl"))
     stopifnot(ncol(rename_rows) == 2)
   }
-  
+
   dots <- list(...)
   if (!is.null(dots$top_annotation)) {
     assert_character(dots$top_annotation)
@@ -53,25 +53,38 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
         tcols <- colors[cnames]
       }
     }
-    taa <- ComplexHeatmap::HeatmapAnnotation(df = ta, col = tcols)
+      df = ta, col = tcols)
     dots$top_annotation <- taa
   }
-  
+
   dots$x <- x
   dots$gdb <- gdb
   dots$rename.rows <- rename_rows
-  
+  dots$colors <- colors
+
   do.call(fheatmap2, dots)
 }
 
-fheatmap2 <- function(x, gdb = NULL, col = NULL,
-                      aggregate.by = c("none", "ewm", "ewz", "zscore"),
-                      split = TRUE, scores = NULL, gs.order = NULL,
-                      name = NULL, rm.collection.prefix = TRUE,
-                      rm.dups = FALSE, recenter = FALSE, rescale = FALSE,
-                      center = FALSE, scale = FALSE,
-                      uncenter = FALSE, unscale = FALSE, rename.rows = NULL,
-                      zlim = NULL, transpose = FALSE, ...) {
+fheatmap2 <- function(
+    x, gdb = NULL, col = NULL,
+    aggregate.by = c("none", "ewm", "ewz", "zscore"),
+    split = TRUE, scores = NULL, gs.order = NULL,
+    name = NULL, rm.collection.prefix = TRUE,
+    rm.dups = FALSE, recenter = FALSE, rescale = FALSE,
+    center = FALSE, scale = FALSE,
+    uncenter = FALSE, unscale = FALSE, rename.rows = NULL,
+    zlim = NULL, transpose = FALSE,
+    colors = NULL, ...,
+
+    right_annotation_label = NULL,
+    right_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
+    right_annotation_name_rot = NULL,
+    right_annotation_gp = gpar(col = NA),
+
+    left_annotation_label = NULL,
+    left_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
+    left_annotation_name_rot = NULL,
+    left_annotation_gp = gpar(col = NA)) {
   X <- sparrow:::as_matrix(x, ...)
   stopifnot(
     ncol(X) > 1L,
@@ -84,13 +97,13 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
       length(aggregate.by) == 1L,
       aggregate.by %in% scores$method)
   }
-  
+
   # if (!is.null(gdb) && aggregate.by != "none") {
   #   if (!is(gdb, "GeneSetDb")) {
   #     gdb <- GeneSetDb(gdb)
   #   }
   # }
-  
+
   drop1.split <- missing(split)
   stopifnot(is.logical(split) && length(split) == 1L)
   if (!is.null(scores)) stopifnot(is.data.frame(scores))
@@ -100,21 +113,21 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
       length(zlim) == 2L,
       zlim[1L] < zlim[2])
   }
-  
-  X <- scale_rows(X, center = center, scale = scale)
+
+  X <- sparrow::scale_rows(X, center = center, scale = scale)
   center. <- if (missing(uncenter)) attr(X, "scaled:center") else uncenter
   scale. <- if (missing(unscale)) attr(X, "scaled:scale") else unscale
-  
+
   gdbc.df <- NULL
   if (!is.null(gdb)) {
     if (!is.data.frame(gdb)) {
-      gdbc <- suppressWarnings(conform(gdb, X, ...))
+      gdbc <- suppressWarnings(sparrow::conform(gdb, X, ...))
       gdbc.df <- as.data.frame(gdbc) # keep only genes that matched in gdb.df
     } else {
       # maintain order user wanted.
       gdbc.df <- dplyr::filter(gdb, .data$feature_id %in% rownames(X))
     }
-    
+
     # Order genesets in requested (if any) order
     if (!is.null(gs.order)) {
       assert_character(gs.order, min.len = 1)
@@ -124,11 +137,11 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
       name. <- factor(gdbc.df[["name"]], gs.order)
       gdbc.df <- gdbc.df[order(name.),,drop = FALSE]
     }
-    
+
     # Set this up so we can order the data.frame in the way requested by user
     gdbc.df$key <- sparrow::encode_gskey(gdbc.df)
   }
-  
+
   if (aggregate.by == "none") {
     if (!is.null(gdbc.df)) {
       ridx <- if (rm.dups) unique(gdbc.df$feature_id) else gdbc.df$feature_id
@@ -142,9 +155,10 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
   } else {
     stop("Haven't vetted geneset scoring in this version")
     if (is.null(scores)) {
-      X <- scoreSingleSamples(gdb, X, methods = aggregate.by, as.matrix = TRUE,
-                              center = FALSE, scale = FALSE,
-                              uncenter = center., unscale = scale., ...)
+      X <- sparrow::scoreSingleSamples(
+        gdb, X, methods = aggregate.by, as.matrix = TRUE,
+        center = FALSE, scale = FALSE,
+        uncenter = center., unscale = scale., ...)
     } else {
       xs <- data.table::setDT(scores[scores[['method']] == aggregate.by,,drop=FALSE])
       xs[, key := sparrow::encode_gskey(xs)]
@@ -156,9 +170,9 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
     # If we want to split, it (only?) makes sense to split by collection
     split <- if (split) sparrow::split_gskey(rownames(X))$collection else NULL
   }
-  
+
   if (!isFALSE(recenter) || !isFALSE(rescale)) {
-    X <- scale_rows(X, center = recenter, scale = rescale)
+    X <- sparrow::scale_rows(X, center = recenter, scale = rescale)
     isna <- which(is.na(X), arr.ind = TRUE)
     if (nrow(isna) > 0L) {
       na.rows <- unique(isna[, "row"])
@@ -173,10 +187,24 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
   }
 
   dots <- list(...)
-  # side_annos <- intersect(c("right_annotation", "left_annotation"), names(dots))
-  side_annos <- intersect(c("right_annotation"), names(dots))
+
+  # side_annos <- intersect(c("right_annotation"), names(dots))
+  side_annos <- intersect(c("right_annotation", "left_annotation"), names(dots))
   split <- NULL
+  already.rearanged <- FALSE
+
   for (aname in side_annos) {
+    if (aname == "right_annotation") {
+      name_gp <- right_annotation_name_gp
+      alabel <- right_annotation_label
+      arot <- right_annotation_name_rot
+      gp <- right_annotation_gp
+    } else {
+      name_gp <- left_annotation_name_gp
+      alabel <- left_annotation_label
+      arot <- left_annotation_name_rot
+      gp <- left_annotation_gp
+    }
     ranno <- dots[[aname]]
     assert_class(ranno, "data.frame")
     rmissing <- setdiff(rownames(X), rownames(ranno))
@@ -184,7 +212,12 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
       stop("Missing row level annotations for: ", paste(missing, collapse = ","))
     }
     ranno <- ranno[rownames(ranno) %in% rownames(X),,drop = FALSE]
-    X <- X[rownames(ranno),,drop=FALSE]
+    if (!already.rearanged) {
+      X <- X[rownames(ranno),,drop=FALSE]
+      already.rearanged <- TRUE
+    } else {
+      ranno <- ranno[rownames(X),,drop=FALSE]
+    }
     rcols <- NULL
     if (is.list(colors)) {
       cnames <- intersect(names(colors), colnames(ranno))
@@ -196,11 +229,16 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
     ra <- ComplexHeatmap::HeatmapAnnotation(
       df = ranno,
       col = rcols,
+      show_legend = FALSE,
+      annotation_label = alabel,
+      annotation_name_rot = arot,
+      annotation_name_gp = name_gp,
+      gp = gp,
       which = "row")
     dots[[aname]] <- ra
   }
-  
-  
+
+
   # What kind of colorscale are we going to use?
   # If this is 0-centered ish, we use a red-white-blue scheme, otherwise
   # we use viridis.
@@ -242,11 +280,11 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
     }
   }
   stopifnot(is.function(col))
-  
+
   # if (drop1.split && !is.null(split) && length(unique(split)) == 1L) {
   #   split <- NULL
   # }
-  
+
   # if (rm.collection.prefix) {
   #   if (aggregate.by != 'none') {
   #     rownames(X) <- split_gskey(rownames(X))$name
@@ -261,16 +299,15 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
   #     }
   #   }
   # }
-  
+
   ## Catch Heatmap arguments in `...` and build a list do do.call() them down
   ## into the function call.
-  dot.args <- list(...)
-  hm.args.default <- as.list(formals(Heatmap))
-  
+  hm.args.default <- as.list(formals(ComplexHeatmap::Heatmap))
+
   if (is.null(name)) {
     name <- if (aggregate.by == 'none') 'value' else 'score'
   }
-  hm.args <- dot.args[intersect(names(dot.args), names(hm.args.default))]
+  hm.args <- dots[intersect(names(dots), names(hm.args.default))]
   hm.args[['matrix']] <- X
   hm.args[['col']] <- col
   hm.args[['row_split']] <- split
@@ -278,7 +315,7 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
   if (is.null(hm.args[["cluster_row_slices"]]) && !is.null(gs.order)) {
     hm.args[["cluster_row_slices"]] <- FALSE
   }
-  
+
   row.labels <- rownames(X)
   if (!is.null(rename.rows)) {
     has.meta <- is(x, "DGEList") ||
@@ -292,12 +329,12 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
         metadf <- data.frame(rn = rownames(x), to = metadf[[rename.rows]],
                              stringsAsFactors = FALSE)
         if (!is.null(metadf$to)) {
-          row.labels <- rownames(renameRows(X, xref = metadf, ...))
+          row.labels <- rownames(sparrow::renameRows(X, xref = metadf, ...))
         } else {
           warning("rename.rows column not found in metadata for x")
         }
       } else {
-        row.labels <- rownames(renameRows(X, rename.rows, ...))
+        row.labels <- rownames(sparrow::renameRows(X, rename.rows, ...))
       }
     } else {
       if (!(is.data.frame(rename.rows) && ncol(rename.rows) == 2)) {
@@ -309,12 +346,12 @@ fheatmap2 <- function(x, gdb = NULL, col = NULL,
           rr[[1L]] <- sub("^.*;;?", "", rename.rows[[1L]])
           rename.rows <- rbind(rename.rows, rr)
         }
-        row.labels <- rownames(renameRows(X, rename.rows, ...))
+        row.labels <- rownames(sparrow::renameRows(X, rename.rows, ...))
       }
     }
   }
   hm.args[["row_labels"]] <- row.labels
-  
+
   H <- do.call(ComplexHeatmap::Heatmap, hm.args)
   H
 }
