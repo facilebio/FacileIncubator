@@ -8,6 +8,9 @@
 #' @param colors a list of named color vectors. Names should correspond to
 #'   columns in row or column annotation dataframes(?)
 fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
+                     top_annotation = NULL, bottom_annotation = NULL,
+                     top_annotation_params = list(),
+                     bottom_annotation_params = list(),
                      colors = NULL) {
   if (is(x, "facile_frame")) {
     if (is(gdb, "GeneSetDb")) {
@@ -42,9 +45,18 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
   }
 
   dots <- list(...)
-  if (!is.null(dots$top_annotation)) {
-    assert_character(dots$top_annotation)
-    assert_subset(dots$top_annotation, colnames(x$samples))
+  # tbannos <- intersect(c("top_annotation", "bottom_annotation"), names(dots))
+  # aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
+  # for (aname in tbannos) {
+  #   atake <- intersect(names(top_annotation_params), aparams)
+  #   assert_character(atake)
+  #   assert_subset(atake, colnames(x$samples))
+  #   aparams <- top_annotation_params[atake]
+  #   paste0("top_", aparams)
+  # 
+  # }
+  
+  if (!is.null(top_annotation)) {
     ta <- x$samples[, dots$top_annotation, drop = FALSE]
     tcols <- NULL
     if (is.list(colors)) {
@@ -53,6 +65,8 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
         tcols <- colors[cnames]
       }
     }
+    
+    taa <- ComplexHetmap::HeatmapAnnotation(
       df = ta, col = tcols)
     dots$top_annotation <- taa
   }
@@ -80,11 +94,13 @@ fheatmap2 <- function(
     right_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
     right_annotation_name_rot = NULL,
     right_annotation_gp = gpar(col = NA),
+    right_annotation_legend_param = list(),
 
     left_annotation_label = NULL,
     left_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
     left_annotation_name_rot = NULL,
-    left_annotation_gp = gpar(col = NA)) {
+    left_annotation_gp = gpar(col = NA),
+    right_annotation_legend_param = list()) {
   X <- sparrow:::as_matrix(x, ...)
   stopifnot(
     ncol(X) > 1L,
@@ -199,11 +215,13 @@ fheatmap2 <- function(
       alabel <- right_annotation_label
       arot <- right_annotation_name_rot
       gp <- right_annotation_gp
+      alp <- right_annotation_legend_param
     } else {
       name_gp <- left_annotation_name_gp
       alabel <- left_annotation_label
       arot <- left_annotation_name_rot
       gp <- left_annotation_gp
+      alp <- left_annotation_legend_param
     }
     ranno <- dots[[aname]]
     assert_class(ranno, "data.frame")
@@ -229,6 +247,7 @@ fheatmap2 <- function(
     ra <- ComplexHeatmap::HeatmapAnnotation(
       df = ranno,
       col = rcols,
+      annotation_legend_param = alp,
       show_legend = FALSE,
       annotation_label = alabel,
       annotation_name_rot = arot,
