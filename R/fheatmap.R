@@ -7,26 +7,56 @@
 #' @export
 #' @param colors a list of named color vectors. Names should correspond to
 #'   columns in row or column annotation dataframes(?)
-fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
-                     top_annotation = NULL, bottom_annotation = NULL,
-                     top_annotation_params = list(),
-                     bottom_annotation_params = list(),
+#' @examples
+#' # the seed matters, because some samples don't have all assay data
+#' set.seed(0xBEEF)
+#' set.seed(0xBEE)
+#' afds <- FacileData::an_fds()
+#' asamples <- FacileData::samples(afds) |> 
+#'   FacileData::with_sample_covariates() |> 
+#'   dplyr::filter(cell_abbrev %in% c("IMM", "PT")) |> 
+#'   dplyr::sample_n(10)
+#' 
+#' genes <- dplyr::tibble(
+#'     name = c(
+#'       "AOX1",   "DPEP1",  "CDH6", "NAT8",     # PT
+#'       "S100A8", "JCHAIN", "CCL4", "FCER1G"),  # IMM
+#'     class = rep(c("PT", "IMM"), each = 4)) |> 
+#'   dplyr::inner_join(FacileData::features(afds), by = "name")
+#' fheatmap(
+#'   asamples,
+#'   genes,
+#'   bottom_annotation = c("cell_abbrev", "condition"),
+#'   ba_annotation_name_gp = grid::gpar(fontsize = 16),
+#'   colors = list(cell_abbrev = c(IMM = "firebrick", PT = "navy")),
+#'   column_split = asamples$cell_abbrev
+#'   )
+fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
+                     rename_rows = NULL, ...,
+                     # top_annotation = NULL, bottom_annotation = NULL,
+                     # top_annotation_params = list(),
+                     # bottom_annotation_params = list(),
                      colors = NULL) {
   if (is(x, "facile_frame")) {
-    if (is(gdb, "GeneSetDb")) {
-      fids <- sparrow::featureIds(gdb)
-    } else {
-      fids <- NULL
+    features <- .fheatmap_features(features)
+    if (is.null(assay_name)) {
+      assay_name <- FacileData::assay_names(FacileData::fds(x))[1L]
     }
+    xo <- x
     sample.order <- paste(x$dataset, x$sample_id, sep ="__")
     # TODO:
     #   1. User should be able to specify assay to use for fheatmap
     #   2. the `class` param (DGEList) should be passed in here, with an
     #      attempt to guess what it is if missing, based on assay_type
-    x <- FacileData::biocbox(x, "DGEList", features = fids,
+    x <- FacileData::biocbox(x, "DGEList", features = features,
                              assay_name = assay_name)
-    x <- edgeR::calcNormFactors(x)
+    dropped <- attr(x, "samples_dropped")
+    if (nrow(dropped) > 0L) {
+      stop("These samples do not have assay data for `", assay_name, "`:\n",
+           paste(dropped$dataset, dropped$sample_id, sep = "__"))
+    }
     stopifnot(setequal(sample.order, colnames(x)))
+    x <- edgeR::calcNormFactors(x)
     x <- x[, sample.order]
   }
   if (test_character(rename_rows)) {
@@ -45,31 +75,49 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
   }
 
   dots <- list(...)
-  # tbannos <- intersect(c("top_annotation", "bottom_annotation"), names(dots))
-  # aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
-  # for (aname in tbannos) {
-  #   atake <- intersect(names(top_annotation_params), aparams)
-  #   assert_character(atake)
-  #   assert_subset(atake, colnames(x$samples))
-  #   aparams <- top_annotation_params[atake]
-  #   paste0("top_", aparams)
-  # 
-  # }
+  tbannos <- intersect(c("top_annotation", "bottom_annotation"), names(dots))
+  aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
   
-  if (!is.null(top_annotation)) {
-    ta <- x$samples[, dots$top_annotation, drop = FALSE]
-    tcols <- NULL
+  # Did the user pass in a `top_annotation` or `bottom_annotation`?
+  # If so, we'll take out the annotations from the y$samples data.frame, and
+  # find the ta_* or ba_* prefixed params to tweak the annotation
+  for (aname in tbannos) {
+    avars <- assert_character(dots[[aname]])
+    assert_subset(avars, colnames(x$samples))
+    adf <- x$samples[, avars, drop = FALSE]
+    
+    arg.prefix <- if (aname == "top_annotation") "ta_" else "ba_"
+    anno.argnames <- paste0(arg.prefix, aparams)
+    args <- dots[intersect(anno.argnames, names(dots))]
+    names(args) <- sub(paste0("^", arg.prefix) ,"", names(args))
+    args$df <- adf
+    
+    acols <- NULL
     if (is.list(colors)) {
-      cnames <- intersect(names(colors), colnames(ta))
+      cnames <- intersect(names(colors), colnames(adf))
       if (length(cnames) > 0) {
-        tcols <- colors[cnames]
+        acols <- colors[cnames]
       }
     }
-    
-    taa <- ComplexHetmap::HeatmapAnnotation(
-      df = ta, col = tcols)
-    dots$top_annotation <- taa
+    args$col <- acols
+    ha <- do.call(ComplexHeatmap::HeatmapAnnotation, args)
+    dots[[aname]] <- ha
   }
+  
+  # if (!is.null(top_annotation)) {
+  #   ta <- x$samples[, dots$top_annotation, drop = FALSE]
+  #   tcols <- NULL
+  #   if (is.list(colors)) {
+  #     cnames <- intersect(names(colors), colnames(ta))
+  #     if (length(cnames) > 0) {
+  #       tcols <- colors[cnames]
+  #     }
+  #   }
+  #   
+  #   taa <- ComplexHetmap::HeatmapAnnotation(
+  #     df = ta, col = tcols)
+  #   dots$top_annotation <- taa
+  # }
 
   dots$x <- x
   dots$gdb <- gdb
@@ -77,6 +125,31 @@ fheatmap <- function(x, assay_name = NULL, gdb = NULL, rename_rows = NULL, ...,
   dots$colors <- colors
 
   do.call(fheatmap2, dots)
+}
+
+#' Helper function to extract features from whatever you have sent into the
+#' [fheatmap()] function.
+#' 
+#' @noRd
+.fheatmap_features <- function(features) {
+  out <- NULL
+  if (is(features, "data.frame")) {
+    out <- features
+  }
+  if (is(features, "GeneSetDb")) {
+    out <- as.data.frame(features)
+  }
+  if (is.data.frame(out)) {
+    stopifnot(
+      nrow(out) > 0,
+      is.character(out[["feature_id"]]))
+  }
+  
+  if (is.null(out)) {
+    stop("Don't know how to extract features from object of type `",
+         class(features)[1L], "`")
+  }
+  out
 }
 
 fheatmap2 <- function(
@@ -100,7 +173,7 @@ fheatmap2 <- function(
     left_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
     left_annotation_name_rot = NULL,
     left_annotation_gp = gpar(col = NA),
-    right_annotation_legend_param = list()) {
+    left_annotation_legend_param = list()) {
   X <- sparrow:::as_matrix(x, ...)
   stopifnot(
     ncol(X) > 1L,
