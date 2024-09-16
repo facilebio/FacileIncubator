@@ -57,8 +57,20 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     }
     stopifnot(setequal(sample.order, colnames(x)))
     x <- edgeR::calcNormFactors(x)
-    x <- x[, sample.order]
   }
+  
+  if (is.character(features)) {
+    features <- x$genes[features,,drop=FALSE]
+  }
+  
+    
+  no.feature <- setdiff(features$feature_id, rownames(x))
+  if (length(no.feature) > 0) {
+    stop("Missing features: ", paste(no.feature, collapse = ";"))
+  }
+  
+  x <- x[features$feature_id, sample.order]
+  
   if (test_character(rename_rows)) {
     stopifnot(
       "need length(2) character vector" = {
@@ -104,23 +116,8 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     dots[[aname]] <- ha
   }
   
-  # if (!is.null(top_annotation)) {
-  #   ta <- x$samples[, dots$top_annotation, drop = FALSE]
-  #   tcols <- NULL
-  #   if (is.list(colors)) {
-  #     cnames <- intersect(names(colors), colnames(ta))
-  #     if (length(cnames) > 0) {
-  #       tcols <- colors[cnames]
-  #     }
-  #   }
-  #   
-  #   taa <- ComplexHetmap::HeatmapAnnotation(
-  #     df = ta, col = tcols)
-  #   dots$top_annotation <- taa
-  # }
-
   dots$x <- x
-  dots$gdb <- gdb
+  dots$features <- features
   dots$rename.rows <- rename_rows
   dots$colors <- colors
 
@@ -153,7 +150,7 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
 }
 
 fheatmap2 <- function(
-    x, gdb = NULL, col = NULL,
+    x, features, col = NULL,
     aggregate.by = c("none", "ewm", "ewz", "zscore"),
     split = TRUE, scores = NULL, gs.order = NULL,
     name = NULL, rm.collection.prefix = TRUE,
@@ -207,58 +204,58 @@ fheatmap2 <- function(
   center. <- if (missing(uncenter)) attr(X, "scaled:center") else uncenter
   scale. <- if (missing(unscale)) attr(X, "scaled:scale") else unscale
 
-  gdbc.df <- NULL
-  if (!is.null(gdb)) {
-    if (!is.data.frame(gdb)) {
-      gdbc <- suppressWarnings(sparrow::conform(gdb, X, ...))
-      gdbc.df <- as.data.frame(gdbc) # keep only genes that matched in gdb.df
-    } else {
-      # maintain order user wanted.
-      gdbc.df <- dplyr::filter(gdb, .data$feature_id %in% rownames(X))
-    }
-
-    # Order genesets in requested (if any) order
-    if (!is.null(gs.order)) {
-      assert_character(gs.order, min.len = 1)
-      gs.order <- unique(c(gs.order, gdbc.df[["name"]]))
-      gs.order <- intersect(gs.order, gdbc.df[["name"]])
-      assert_set_equal(gs.order, gdbc.df[["name"]])
-      name. <- factor(gdbc.df[["name"]], gs.order)
-      gdbc.df <- gdbc.df[order(name.),,drop = FALSE]
-    }
-
-    # Set this up so we can order the data.frame in the way requested by user
-    gdbc.df$key <- sparrow::encode_gskey(gdbc.df)
-  }
-
-  if (aggregate.by == "none") {
-    if (!is.null(gdbc.df)) {
-      ridx <- if (rm.dups) unique(gdbc.df$feature_id) else gdbc.df$feature_id
-      # We may have a sparse matrix at this point, turning it to dense for now,
-      # but need to fix.
-      X <- X[ridx,,drop=FALSE]
-      if (is.numeric(recenter)) recenter <- recenter[ridx]
-      if (is.numeric(center)) center <- center[ridx]
-      split <- if (split) gdbc.df$key else NULL
-    }
-  } else {
-    stop("Haven't vetted geneset scoring in this version")
-    if (is.null(scores)) {
-      X <- sparrow::scoreSingleSamples(
-        gdb, X, methods = aggregate.by, as.matrix = TRUE,
-        center = FALSE, scale = FALSE,
-        uncenter = center., unscale = scale., ...)
-    } else {
-      xs <- data.table::setDT(scores[scores[['method']] == aggregate.by,,drop=FALSE])
-      xs[, key := sparrow::encode_gskey(xs)]
-      xw <- data.table::dcast(xs, key ~ sample_id, value.var = "score")
-      xw <- unique(xw, by = "key")
-      X <- as.matrix(xw[, -1, with = FALSE])
-      rownames(X) <- xw[[1]]
-    }
-    # If we want to split, it (only?) makes sense to split by collection
-    split <- if (split) sparrow::split_gskey(rownames(X))$collection else NULL
-  }
+  # gdbc.df <- NULL
+  # if (!is.null(gdb)) {
+  #   if (!is.data.frame(gdb)) {
+  #     gdbc <- suppressWarnings(sparrow::conform(gdb, X, ...))
+  #     gdbc.df <- as.data.frame(gdbc) # keep only genes that matched in gdb.df
+  #   } else {
+  #     # maintain order user wanted.
+  #     gdbc.df <- dplyr::filter(gdb, .data$feature_id %in% rownames(X))
+  #   }
+  # 
+  #   # Order genesets in requested (if any) order
+  #   if (!is.null(gs.order)) {
+  #     assert_character(gs.order, min.len = 1)
+  #     gs.order <- unique(c(gs.order, gdbc.df[["name"]]))
+  #     gs.order <- intersect(gs.order, gdbc.df[["name"]])
+  #     assert_set_equal(gs.order, gdbc.df[["name"]])
+  #     name. <- factor(gdbc.df[["name"]], gs.order)
+  #     gdbc.df <- gdbc.df[order(name.),,drop = FALSE]
+  #   }
+  # 
+  #   # Set this up so we can order the data.frame in the way requested by user
+  #   gdbc.df$key <- sparrow::encode_gskey(gdbc.df)
+  # }
+  # 
+  # if (aggregate.by == "none") {
+  #   if (!is.null(gdbc.df)) {
+  #     ridx <- if (rm.dups) unique(gdbc.df$feature_id) else gdbc.df$feature_id
+  #     # We may have a sparse matrix at this point, turning it to dense for now,
+  #     # but need to fix.
+  #     X <- X[ridx,,drop=FALSE]
+  #     if (is.numeric(recenter)) recenter <- recenter[ridx]
+  #     if (is.numeric(center)) center <- center[ridx]
+  #     split <- if (split) gdbc.df$key else NULL
+  #   }
+  # } else {
+  #   stop("Haven't vetted geneset scoring in this version")
+  #   if (is.null(scores)) {
+  #     X <- sparrow::scoreSingleSamples(
+  #       gdb, X, methods = aggregate.by, as.matrix = TRUE,
+  #       center = FALSE, scale = FALSE,
+  #       uncenter = center., unscale = scale., ...)
+  #   } else {
+  #     xs <- data.table::setDT(scores[scores[['method']] == aggregate.by,,drop=FALSE])
+  #     xs[, key := sparrow::encode_gskey(xs)]
+  #     xw <- data.table::dcast(xs, key ~ sample_id, value.var = "score")
+  #     xw <- unique(xw, by = "key")
+  #     X <- as.matrix(xw[, -1, with = FALSE])
+  #     rownames(X) <- xw[[1]]
+  #   }
+  #   # If we want to split, it (only?) makes sense to split by collection
+  #   split <- if (split) sparrow::split_gskey(rownames(X))$collection else NULL
+  # }
 
   if (!isFALSE(recenter) || !isFALSE(rescale)) {
     X <- sparrow::scale_rows(X, center = recenter, scale = rescale)
@@ -282,55 +279,83 @@ fheatmap2 <- function(
   split <- NULL
   already.rearanged <- FALSE
 
-  for (aname in side_annos) {
-    if (aname == "right_annotation") {
-      name_gp <- right_annotation_name_gp
-      alabel <- right_annotation_label
-      arot <- right_annotation_name_rot
-      gp <- right_annotation_gp
-      alp <- right_annotation_legend_param
-    } else {
-      name_gp <- left_annotation_name_gp
-      alabel <- left_annotation_label
-      arot <- left_annotation_name_rot
-      gp <- left_annotation_gp
-      alp <- left_annotation_legend_param
-    }
-    ranno <- dots[[aname]]
-    assert_class(ranno, "data.frame")
-    rmissing <- setdiff(rownames(X), rownames(ranno))
-    if (length(rmissing)) {
-      stop("Missing row level annotations for: ", paste(missing, collapse = ","))
-    }
-    ranno <- ranno[rownames(ranno) %in% rownames(X),,drop = FALSE]
-    if (!already.rearanged) {
-      X <- X[rownames(ranno),,drop=FALSE]
-      already.rearanged <- TRUE
-    } else {
-      ranno <- ranno[rownames(X),,drop=FALSE]
-    }
-    rcols <- NULL
+  # for (aname in side_annos) {
+  #   if (aname == "right_annotation") {
+  #     name_gp <- right_annotation_name_gp
+  #     alabel <- right_annotation_label
+  #     arot <- right_annotation_name_rot
+  #     gp <- right_annotation_gp
+  #     alp <- right_annotation_legend_param
+  #   } else {
+  #     name_gp <- left_annotation_name_gp
+  #     alabel <- left_annotation_label
+  #     arot <- left_annotation_name_rot
+  #     gp <- left_annotation_gp
+  #     alp <- left_annotation_legend_param
+  #   }
+  #   ranno <- dots[[aname]]
+  #   assert_class(ranno, "data.frame")
+  #   rmissing <- setdiff(rownames(X), rownames(ranno))
+  #   if (length(rmissing)) {
+  #     stop("Missing row level annotations for: ", paste(missing, collapse = ","))
+  #   }
+  #   ranno <- ranno[rownames(ranno) %in% rownames(X),,drop = FALSE]
+  #   if (!already.rearanged) {
+  #     X <- X[rownames(ranno),,drop=FALSE]
+  #     already.rearanged <- TRUE
+  #   } else {
+  #     ranno <- ranno[rownames(X),,drop=FALSE]
+  #   }
+  #   rcols <- NULL
+  #   if (is.list(colors)) {
+  #     cnames <- intersect(names(colors), colnames(ranno))
+  #     rcols <- colors[cnames]
+  #   }
+  #   if (!is.null(gdbc.df)) {
+  #     split <- factor(gdbc.df$name, unique(gdbc.df$name))
+  #   }
+  #   ra <- ComplexHeatmap::HeatmapAnnotation(
+  #     df = ranno,
+  #     col = rcols,
+  #     annotation_legend_param = alp,
+  #     show_legend = FALSE,
+  #     annotation_label = alabel,
+  #     annotation_name_rot = arot,
+  #     annotation_name_gp = name_gp,
+  #     gp = gp,
+  #     which = "row")
+  #   dots[[aname]] <- ra
+  # }
+
+  rlannos <- intersect(c("right_annotation", "left_annotation"), names(dots))
+  aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
+  
+  # Did the user pass in a `top_annotation` or `bottom_annotation`?
+  # If so, we'll take out the annotations from the y$samples data.frame, and
+  # find the ta_* or ba_* prefixed params to tweak the annotation
+  for (aname in rlannos) {
+    avars <- assert_character(dots[[aname]])
+
+    arg.prefix <- if (aname == "right_annotation") "ra_" else "la_"
+    anno.argnames <- paste0(arg.prefix, aparams)
+    args <- dots[intersect(anno.argnames, names(dots))]
+    names(args) <- sub(paste0("^", arg.prefix) ,"", names(args))
+    args$df <- adf
+    
+    acols <- NULL
     if (is.list(colors)) {
-      cnames <- intersect(names(colors), colnames(ranno))
-      rcols <- colors[cnames]
+      cnames <- intersect(names(colors), colnames(adf))
+      if (length(cnames) > 0) {
+        acols <- colors[cnames]
+      }
     }
-    if (!is.null(gdbc.df)) {
-      split <- factor(gdbc.df$name, unique(gdbc.df$name))
-    }
-    ra <- ComplexHeatmap::HeatmapAnnotation(
-      df = ranno,
-      col = rcols,
-      annotation_legend_param = alp,
-      show_legend = FALSE,
-      annotation_label = alabel,
-      annotation_name_rot = arot,
-      annotation_name_gp = name_gp,
-      gp = gp,
-      which = "row")
-    dots[[aname]] <- ra
+    args$col <- acols
+    ha <- do.call(ComplexHeatmap::HeatmapAnnotation, args)
+    dots[[aname]] <- ha
   }
-
-
+  
+  
+  
   # What kind of colorscale are we going to use?
   # If this is 0-centered ish, we use a red-white-blue scheme, otherwise
   # we use viridis.
