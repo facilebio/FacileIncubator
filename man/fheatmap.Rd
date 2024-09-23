@@ -4,7 +4,19 @@
 \alias{fheatmap}
 \title{Approximate a facile heatmap function}
 \usage{
-fheatmap(x, gdb = NULL, rename_rows = NULL, ...)
+fheatmap(
+  x,
+  features = NULL,
+  assay_name = NULL,
+  gdb = NULL,
+  rename_rows = NULL,
+  ...,
+  colors = NULL
+)
+}
+\arguments{
+\item{colors}{a list of named color vectors. Names should correspond to
+columns in row or column annotation dataframes(?)}
 }
 \description{
 This just wraps the \code{\link[sparrow:mgheatmap2]{sparrow::mgheatmap2()}} function, but can accept a
@@ -12,4 +24,29 @@ This just wraps the \code{\link[sparrow:mgheatmap2]{sparrow::mgheatmap2()}} func
 }
 \details{
 TODO: support batch correction over data retrieved from \code{x}
+}
+\examples{
+# the seed matters, because some samples don't have all assay data
+set.seed(0xBEEF)
+set.seed(0xBEE)
+afds <- FacileData::an_fds()
+asamples <- FacileData::samples(afds) |> 
+  FacileData::with_sample_covariates() |> 
+  dplyr::filter(cell_abbrev \%in\% c("IMM", "PT")) |> 
+  dplyr::sample_n(10)
+
+genes <- dplyr::tibble(
+    name = c(
+      "AOX1",   "DPEP1",  "CDH6", "NAT8",     # PT
+      "S100A8", "JCHAIN", "CCL4", "FCER1G"),  # IMM
+    class = rep(c("PT", "IMM"), each = 4)) |> 
+  dplyr::inner_join(FacileData::features(afds), by = "name")
+fheatmap(
+  asamples,
+  genes,
+  bottom_annotation = c("cell_abbrev", "condition"),
+  ba_annotation_name_gp = grid::gpar(fontsize = 16),
+  colors = list(cell_abbrev = c(IMM = "firebrick", PT = "navy")),
+  column_split = asamples$cell_abbrev
+  )
 }

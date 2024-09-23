@@ -19,7 +19,7 @@ geneset_shifts(
   xlims = NULL,
   facet_scales = "free",
   trim = 0.02,
-  with_stats = c(pval = "pvalue", padj.by.collection = "FDR"),
+  with_stats = c(pvalue = "pval", FDR = "padj.by.collection"),
   ...
 )
 }
@@ -32,8 +32,8 @@ GeneSetDb objects from each results.}
 \item{colors}{aaaaarrrghhhhhhhhh}
 
 \item{with_stats}{A named character vector that specifies the gsea statistics
-to print in each of the results. \code{names()} correspond to the column names
-from the result table of the individual GSEA result, and the values are
+to print in each of the results. The values correspond to the column names
+from the result table of the individual GSEA result, and the \code{names()} are
 the labels you want to use for that statistic. How do you know what columns
 are available for printing? Look at the column names in the table returned
 by \code{tidy(ffsea.resut, name = gsea.method)}. By default, the nominal
@@ -81,7 +81,7 @@ gs.1 <- geneset_shifts(
     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
   gsea.method = "fgsea",
   columns = "genesets",
-  with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+  with_stats = c("pvalue" = "pval", "FDR" = "padj", NES = "NES"))
 gs.1$plot
 
 gs.2 <- geneset_shifts(
@@ -90,6 +90,6 @@ gs.2 <- geneset_shifts(
     "angiogenesis" = "HALLMARK_ANGIOGENESIS"),
   gsea.method = "fgsea",
   columns = "results",
-  with_stats = c(pval = "pvalue", padj = "FDR", NES = "NES"))
+  with_stats = c("pvalue" = "pval", "FDR" = "padj", NES = "NES"))
 gs.2$plot
 }

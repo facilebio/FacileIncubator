@@ -3,7 +3,7 @@ Type: Package
 Title: Incubator for half-baked ideas
 Version: 0.0.15
 Authors@R: c(
-    person("Steve", "Lianoglou", , "lianoglou@dnli.com", c("aut", "cre"),
+    person("Steve", "Lianoglou", , "steve@aratus.bio", c("aut", "cre"),
       comment = c(ORCID = "0000-0002-0924-1754")),
     person("Denali Therapeutics", role = c("cph", "fnd")))
 Description: This is a safe place to develop half-baked ideas that are surely
@@ -30,4 +30,4 @@ License: Apache License (>= 2.0)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.3.2
