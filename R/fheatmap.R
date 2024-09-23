@@ -42,23 +42,45 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     if (is.null(assay_name)) {
       assay_name <- FacileData::assay_names(FacileData::fds(x))[1L]
     }
+    ainfo <- FacileData::assay_info(FacileData::fds(x), assay_name)
+    if (!ainfo$assay_type == "rnaseq") {
+      stop("fheatmap(facile_frame) only works for rnaseq data for now")
+    }
+    x <- FacileData::with_assay_covariates(x)
     xo <- x
+    
     sample.order <- paste(x$dataset, x$sample_id, sep ="__")
     # TODO:
     #   1. User should be able to specify assay to use for fheatmap
     #   2. the `class` param (DGEList) should be passed in here, with an
     #      attempt to guess what it is if missing, based on assay_type
     x <- FacileData::biocbox(x, "DGEList", features = features,
-                             assay_name = assay_name)
+                             assay_name = assay_name,
+                             update_libsizes = FALSE,
+                             update_normfactors = FALSE)
+    x$samples <- x$samples |> 
+      dplyr::mutate(
+        lib.size = ifelse(
+          is.na(libsize), 
+          # lib.size,
+          mean(libsize, na.rm = TRUE),
+          libsize),
+        norm.factors = ifelse(
+          is.na(normfactor), 
+          # norm.factors,
+          mean(normfactor, na.rm = TRUE),
+          normfactor
+      )) |> 
+      select(-libsize, -normfactor)
     dropped <- attr(x, "samples_dropped")
     if (nrow(dropped) > 0L) {
       stop("These samples do not have assay data for `", assay_name, "`:\n",
            paste(dropped$dataset, dropped$sample_id, sep = "__"))
     }
     stopifnot(setequal(sample.order, colnames(x)))
-    x <- edgeR::calcNormFactors(x)
+    # x <- edgeR::calcNormFactors(x)
   }
-  
+
   if (is.character(features)) {
     features <- x$genes[features,,drop=FALSE]
   }
@@ -362,7 +384,9 @@ fheatmap2 <- function(
   if (is.null(col)) {
     # Is 0 close to the center of the score distribution?
     qtile.X <- quantile(X, c(0.25, 0.75))
-    zero.center <- (qtile.X[1L] < 0 && qtile.X[2L] > 0) || any(recenter)
+    zero.center <- (qtile.X[1L] < 0 && qtile.X[2L] > 0) || 
+      (test_logical(center, len = ncol(X)) && any(center)) ||
+      any(recenter)
     if (zero.center) {
       if (missing(zlim)) {
         fpost <- quantile(abs(X), 0.975)
