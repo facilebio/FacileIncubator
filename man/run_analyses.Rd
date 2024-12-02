@@ -23,3 +23,11 @@ run_analyses(
 \description{
 Executes the predefined analysis defined in an experiment setup table
 }
+\examples{
+efds <- FacileData::exampleFacileDataSet()
+esamples <- FacileData::with_sample_covariates(FacileData::samples(efds))
+adefs <- read.csv(
+  system.file("extdata", "example-auto-analysis.csv",
+              package = "FacileIncubator"))
+results <- run_analyses(adefs, samples = esamples)
+}

@@ -1,7 +1,7 @@
 Package: FacileIncubator
 Type: Package
 Title: Incubator for half-baked ideas
-Version: 0.0.15
+Version: 0.0.16
 Authors@R: c(
     person("Steve", "Lianoglou", , "steve@aratus.bio", c("aut", "cre"),
       comment = c(ORCID = "0000-0002-0924-1754")),

@@ -3,7 +3,7 @@
 #' @export
 #' @param definitions path to the comparison definition file
 #' @param board the pinboard to serialize the results to
-#' @example
+#' @examples
 #' efds <- FacileData::exampleFacileDataSet()
 #' esamples <- FacileData::with_sample_covariates(FacileData::samples(efds))
 #' adefs <- read.csv(

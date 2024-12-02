@@ -182,6 +182,9 @@ fheatmap2 <- function(
     zlim = NULL, transpose = FALSE,
     colors = NULL, ...,
 
+    cluster_row_slices = FALSE,
+    cluster_column_slices = FALSE,
+    
     right_annotation_label = NULL,
     right_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
     right_annotation_name_rot = NULL,
@@ -492,6 +495,9 @@ fheatmap2 <- function(
     }
   }
   hm.args[["row_labels"]] <- row.labels
+  
+  hm.args[["cluster_row_slices"]] <-  cluster_row_slices
+  hm.args[["cluster_column_slices"]] <-  cluster_column_slices
 
   H <- do.call(ComplexHeatmap::Heatmap, hm.args)
   H
