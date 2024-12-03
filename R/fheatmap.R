@@ -12,16 +12,16 @@
 #' set.seed(0xBEEF)
 #' set.seed(0xBEE)
 #' afds <- FacileData::an_fds()
-#' asamples <- FacileData::samples(afds) |> 
-#'   FacileData::with_sample_covariates() |> 
-#'   dplyr::filter(cell_abbrev %in% c("IMM", "PT")) |> 
+#' asamples <- FacileData::samples(afds) |>
+#'   FacileData::with_sample_covariates() |>
+#'   dplyr::filter(cell_abbrev %in% c("IMM", "PT")) |>
 #'   dplyr::sample_n(10)
-#' 
+#'
 #' genes <- dplyr::tibble(
 #'     name = c(
 #'       "AOX1",   "DPEP1",  "CDH6", "NAT8",     # PT
 #'       "S100A8", "JCHAIN", "CCL4", "FCER1G"),  # IMM
-#'     class = rep(c("PT", "IMM"), each = 4)) |> 
+#'     class = rep(c("PT", "IMM"), each = 4)) |>
 #'   dplyr::inner_join(FacileData::features(afds), by = "name")
 #' fheatmap(
 #'   asamples,
@@ -32,11 +32,12 @@
 #'   column_split = asamples$cell_abbrev
 #'   )
 fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
-                     rename_rows = NULL, ...,
+                     rename_rows = NULL, ..., batch = NULL, main = NULL,
                      # top_annotation = NULL, bottom_annotation = NULL,
                      # top_annotation_params = list(),
                      # bottom_annotation_params = list(),
                      colors = NULL) {
+  assert_class(x, "facile_frame")
   if (is(x, "facile_frame")) {
     features <- .fheatmap_features(features)
     if (is.null(assay_name)) {
@@ -46,9 +47,9 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     if (!ainfo$assay_type == "rnaseq") {
       stop("fheatmap(facile_frame) only works for rnaseq data for now")
     }
-    x <- FacileData::with_assay_covariates(x)
+    x <- FacileData::with_assay_covariates(x, assay_name = ainfo$assay)
     xo <- x
-    
+
     sample.order <- paste(x$dataset, x$sample_id, sep ="__")
     # TODO:
     #   1. User should be able to specify assay to use for fheatmap
@@ -58,20 +59,20 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
                              assay_name = assay_name,
                              update_libsizes = FALSE,
                              update_normfactors = FALSE)
-    x$samples <- x$samples |> 
+    x$samples <- x$samples |>
       dplyr::mutate(
         lib.size = ifelse(
-          is.na(libsize), 
+          is.na(libsize),
           # lib.size,
           mean(libsize, na.rm = TRUE),
           libsize),
         norm.factors = ifelse(
-          is.na(normfactor), 
+          is.na(normfactor),
           # norm.factors,
           mean(normfactor, na.rm = TRUE),
           normfactor
-      )) |> 
-      select(-libsize, -normfactor)
+      )) |>
+      dplyr::select(-libsize, -normfactor)
     dropped <- attr(x, "samples_dropped")
     if (nrow(dropped) > 0L) {
       stop("These samples do not have assay data for `", assay_name, "`:\n",
@@ -84,15 +85,15 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
   if (is.character(features)) {
     features <- x$genes[features,,drop=FALSE]
   }
-  
-    
+
+
   no.feature <- setdiff(features$feature_id, rownames(x))
   if (length(no.feature) > 0) {
     stop("Missing features: ", paste(no.feature, collapse = ";"))
   }
-  
+
   x <- x[features$feature_id, sample.order]
-  
+
   if (test_character(rename_rows)) {
     stopifnot(
       "need length(2) character vector" = {
@@ -111,7 +112,7 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
   dots <- list(...)
   tbannos <- intersect(c("top_annotation", "bottom_annotation"), names(dots))
   aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
-  
+
   # Did the user pass in a `top_annotation` or `bottom_annotation`?
   # If so, we'll take out the annotations from the y$samples data.frame, and
   # find the ta_* or ba_* prefixed params to tweak the annotation
@@ -119,13 +120,13 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     avars <- assert_character(dots[[aname]])
     assert_subset(avars, colnames(x$samples))
     adf <- x$samples[, avars, drop = FALSE]
-    
+
     arg.prefix <- if (aname == "top_annotation") "ta_" else "ba_"
     anno.argnames <- paste0(arg.prefix, aparams)
     args <- dots[intersect(anno.argnames, names(dots))]
     names(args) <- sub(paste0("^", arg.prefix) ,"", names(args))
     args$df <- adf
-    
+
     acols <- NULL
     if (is.list(colors)) {
       cnames <- intersect(names(colors), colnames(adf))
@@ -137,7 +138,14 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
     ha <- do.call(ComplexHeatmap::HeatmapAnnotation, args)
     dots[[aname]] <- ha
   }
-  
+
+  if (!is.null(batch)) {
+    stopifnot(is(x, "DGEList"))
+    cpm <- edgeR::cpm(x, log = TRUE, prior.count = 3)
+    x <- FacileData::remove_batch_effect(
+      cpm, x$samples, batch = batch, main = main)
+  }
+
   dots$x <- x
   dots$features <- features
   dots$rename.rows <- rename_rows
@@ -148,7 +156,7 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
 
 #' Helper function to extract features from whatever you have sent into the
 #' [fheatmap()] function.
-#' 
+#'
 #' @noRd
 .fheatmap_features <- function(features) {
   out <- NULL
@@ -163,7 +171,7 @@ fheatmap <- function(x, features = NULL, assay_name = NULL, gdb = NULL,
       nrow(out) > 0,
       is.character(out[["feature_id"]]))
   }
-  
+
   if (is.null(out)) {
     stop("Don't know how to extract features from object of type `",
          class(features)[1L], "`")
@@ -184,7 +192,7 @@ fheatmap2 <- function(
 
     cluster_row_slices = FALSE,
     cluster_column_slices = FALSE,
-    
+
     right_annotation_label = NULL,
     right_annotation_name_gp = grid::gpar(col = "black", fontsize = 10),
     right_annotation_name_rot = NULL,
@@ -238,7 +246,7 @@ fheatmap2 <- function(
   #     # maintain order user wanted.
   #     gdbc.df <- dplyr::filter(gdb, .data$feature_id %in% rownames(X))
   #   }
-  # 
+  #
   #   # Order genesets in requested (if any) order
   #   if (!is.null(gs.order)) {
   #     assert_character(gs.order, min.len = 1)
@@ -248,11 +256,11 @@ fheatmap2 <- function(
   #     name. <- factor(gdbc.df[["name"]], gs.order)
   #     gdbc.df <- gdbc.df[order(name.),,drop = FALSE]
   #   }
-  # 
+  #
   #   # Set this up so we can order the data.frame in the way requested by user
   #   gdbc.df$key <- sparrow::encode_gskey(gdbc.df)
   # }
-  # 
+  #
   # if (aggregate.by == "none") {
   #   if (!is.null(gdbc.df)) {
   #     ridx <- if (rm.dups) unique(gdbc.df$feature_id) else gdbc.df$feature_id
@@ -354,7 +362,7 @@ fheatmap2 <- function(
 
   rlannos <- intersect(c("right_annotation", "left_annotation"), names(dots))
   aparams <- setdiff(formalArgs(ComplexHeatmap::HeatmapAnnotation), "...")
-  
+
   # Did the user pass in a `top_annotation` or `bottom_annotation`?
   # If so, we'll take out the annotations from the y$samples data.frame, and
   # find the ta_* or ba_* prefixed params to tweak the annotation
@@ -366,7 +374,7 @@ fheatmap2 <- function(
     args <- dots[intersect(anno.argnames, names(dots))]
     names(args) <- sub(paste0("^", arg.prefix) ,"", names(args))
     args$df <- adf
-    
+
     acols <- NULL
     if (is.list(colors)) {
       cnames <- intersect(names(colors), colnames(adf))
@@ -378,16 +386,16 @@ fheatmap2 <- function(
     ha <- do.call(ComplexHeatmap::HeatmapAnnotation, args)
     dots[[aname]] <- ha
   }
-  
-  
-  
+
+
+
   # What kind of colorscale are we going to use?
   # If this is 0-centered ish, we use a red-white-blue scheme, otherwise
   # we use viridis.
   if (is.null(col)) {
     # Is 0 close to the center of the score distribution?
     qtile.X <- quantile(X, c(0.25, 0.75))
-    zero.center <- (qtile.X[1L] < 0 && qtile.X[2L] > 0) || 
+    zero.center <- (qtile.X[1L] < 0 && qtile.X[2L] > 0) ||
       (test_logical(center, len = ncol(X)) && any(center)) ||
       any(recenter)
     if (zero.center) {
@@ -495,7 +503,7 @@ fheatmap2 <- function(
     }
   }
   hm.args[["row_labels"]] <- row.labels
-  
+
   hm.args[["cluster_row_slices"]] <-  cluster_row_slices
   hm.args[["cluster_column_slices"]] <-  cluster_column_slices
 
