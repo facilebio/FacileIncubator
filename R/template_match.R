@@ -80,11 +80,6 @@ template_match.FacileAnovaAnalysisResult <- function(
     M <- as.matrix(xres[, names(template)])
   } else {
     assert_choice(template, c("ascending", "descending"))
-    if (template == "ascending") {
-      template <- seq(ncol(M))
-    } else if (template == "descending") {
-      template <- seq(ncol(M), 1)
-    }
     
     # we need to define the order of the groups before we look for the template
     # and assume here that the order follows the order of appearance of the
@@ -93,15 +88,22 @@ template_match.FacileAnovaAnalysisResult <- function(
     group.vals <- local({
       samples. <- samples(x)
       group.var <- param(model(x), "covariate")
-      group.vals <- samples.[[group.var]]
+      group.vals <- unique(samples.[[group.var]])
       if (is.factor(group.vals)) group.vals <- levels(group.vals)
       group.vals <- make.names(group.vals)
       group.vals[1] <- paste0("mean.", group.vals[1])
       group.vals[2:length(group.vals)] <- paste0("logFC.", group.vals[2:length(group.vals)])
       intersect(colnames(xres), group.vals)
     })
-  
+
     M <- cbind(0, as.matrix(xres[, group.vals, drop = FALSE]))
+    
+    if (template == "ascending") {
+      template <- seq(ncol(M))
+    } else if (template == "descending") {
+      template <- seq(ncol(M), 1)
+    }
+    
   }
 
   stopifnot(
