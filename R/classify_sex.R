@@ -25,7 +25,10 @@ classify_sex.matrix <- function(x, sex_genes = NULL, ...) {
   )
   
   xsex <- x[rownames(x) %in% sex_genes$feature_id, , drop = FALSE]
-  sg <- dplyr::filter(sex_genes, .data$feature_id %in% rownames(xsex))
+  sg <- sex_genes |>
+    dplyr::filter(.data$feature_id %in% rownames(xsex)) |>
+    dplyr::arrange(sex, symbol) |>
+    dplyr::mutate(gene_name = factor(symbol, unique(symbol)))
   
   female <- sg$sex == "female"
   nf <- sum(female)
