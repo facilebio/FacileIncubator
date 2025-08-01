@@ -16,9 +16,10 @@ classify_sex <- function(x, sex_genes = NULL, ...) {
 #' @param x a log normalized matrix of expression
 #' @param female logical vector indicating which rows corrsepond to
 #'   female-specific genes
-classify_sex.matrix <- function(x, sex_genes = NULL, ...) {
+classify_sex.matrix <- function(x, sex_genes = NULL, threshold = 1, ...) {
   assert_data_frame(sex_genes)
   assert_character(sex_genes[["feature_id"]])
+  assert_number(threshold, lower = 0.1)
   sex_genes[["sex"]] <- assert_set_equal(
     tolower(sex_genes[["sex"]]),
     c("male", "female")
@@ -44,8 +45,8 @@ classify_sex.matrix <- function(x, sex_genes = NULL, ...) {
   mscore <- colMeans(xsex[!female, , drop = FALSE])
   
   fdiff <- fscore - mscore
-  pred <- ifelse(fdiff > 1, "female", "ambiguous")
-  pred <- ifelse(fdiff < -1, "male", pred)
+  pred <- ifelse(fdiff > threshold, "female", "ambiguous")
+  pred <- ifelse(fdiff < -threshold, "male", pred)
   pred <- dplyr::tibble(
     sample_id = colnames(xsex),
     fdiff_score = fdiff,
@@ -87,11 +88,18 @@ classify_sex.DGEList <- function(
         label = ifelse(predicted_sex == "ambiguous", sample_id, "")
       )
     gg <- ggplot2::ggplot(xdat) +
-      ggplot2::aes(x = predicted_sex, y = value) +
+      ggplot2::aes(x = gene_name, y = value, fill = predicted_sex) +
       ggplot2::geom_boxplot(outlier.size = 0) +
-      ggplot2::geom_jitter(ggplot2::aes(color = predicted_sex), width = 0.2) +
-      ggplot2::facet_wrap(~symbol) +
-      ggrepel::geom_label_repel(ggplot2::aes(label = label))
+      ggplot2::geom_point(
+        position = ggplot2::position_jitterdodge(jitter.width = 0.1),
+        pch = 21
+      ) +
+      ggrepel::geom_label_repel(ggplot2::aes(label = label)) +
+      ggplot2::labs(
+        title = "Sex-specific gene expression",
+        y = "log2(CPM)",
+        x = ""
+      )
     out$plot <- gg
     print(gg)
   }
