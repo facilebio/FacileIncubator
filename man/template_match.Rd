@@ -31,7 +31,7 @@ increasing, decreasing, or a peak in the middle, etc. This is called
 Pavlidis.
 }
 \details{
-This implementation follows the main idea from the \code{PatternHunger} function
+This implementation follows the main idea from the \code{PatternHunter} function
 in the MApckg package.
 
 Other resources:

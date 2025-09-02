@@ -24,13 +24,13 @@ classify_sex.matrix <- function(x, sex_genes = NULL, threshold = 1, ...) {
     tolower(sex_genes[["sex"]]),
     c("male", "female")
   )
-  
+
   xsex <- x[rownames(x) %in% sex_genes$feature_id, , drop = FALSE]
   sg <- sex_genes |>
     dplyr::filter(.data$feature_id %in% rownames(xsex)) |>
     dplyr::arrange(sex, symbol) |>
     dplyr::mutate(gene_name = factor(symbol, unique(symbol)))
-  
+
   female <- sg$sex == "female"
   nf <- sum(female)
   if (nf == 0) {
@@ -39,11 +39,11 @@ classify_sex.matrix <- function(x, sex_genes = NULL, threshold = 1, ...) {
   if (nf == nrow(xsex)) {
     stop("No male marker genes found in dataset")
   }
-  
+
   xsex <- xsex[sg$feature_id, , drop = FALSE]
   fscore <- colMeans(xsex[female, , drop = FALSE])
   mscore <- colMeans(xsex[!female, , drop = FALSE])
-  
+
   fdiff <- fscore - mscore
   pred <- ifelse(fdiff > threshold, "female", "ambiguous")
   pred <- ifelse(fdiff < -threshold, "male", pred)
@@ -52,13 +52,13 @@ classify_sex.matrix <- function(x, sex_genes = NULL, threshold = 1, ...) {
     fdiff_score = fdiff,
     predicted_sex = pred
   )
-  
+
   datadf <- lapply(1:ncol(x), function(i) {
     dplyr::mutate(sg, sample_id = colnames(x)[i])
   }) |>
     dplyr::bind_rows() |>
     dplyr::mutate(value = as.vector(xsex))
-  
+
   list(
     data = datadf,
     prediction = pred
@@ -67,12 +67,42 @@ classify_sex.matrix <- function(x, sex_genes = NULL, threshold = 1, ...) {
 
 #' @noRd
 #' @export
+classify_sex.facile_frame <- function(
+  x,
+  sex_genes = NULL,
+  species = FacileData::organism(FacileData::fds(x)),
+  ...,
+  assay_name = NULL
+) {
+  assert_class(x, "facile_frame")
+  if (is.null(sex_genes)) {
+    sex_genes <- sex_genes(species)
+  }
+  X <- x |>
+    FacileData::fetch_assay_data(
+      sex_genes,
+      normalized = TRUE,
+      asasy_name = assay_name,
+      as.matrix = TRUE
+    )
+  out <- classify_sex(X, sex_genes = sex_genes)
+  lapply(out, function(xdf) {
+    xdf |>
+      tidyr::separate_wider_delim(
+        "sample_id",
+        delim = "__",
+        names = c("dataset", "sample_id")
+      )
+  })
+}
+
+#' @noRd
+#' @export
 classify_sex.DGEList <- function(
-    x,
-    sex_genes = NULL,
-    species = NULL,
-    plot = TRUE,
-    ...
+  x,
+  sex_genes = NULL,
+  species = NULL,
+  ...
 ) {
   assert_class(x, "DGEList")
   if (is.null(sex_genes)) {
@@ -80,40 +110,16 @@ classify_sex.DGEList <- function(
   }
   x <- edgeR::calcNormFactors(x)
   X <- edgeR::cpm(x, log = TRUE, prior.count = 3)
-  out <- classify_sex(X, sex_genes = sex_genes)
-  if (plot) {
-    xdat <- out$data |>
-      dplyr::inner_join(out$prediction, by = "sample_id") |>
-      dplyr::mutate(
-        label = ifelse(predicted_sex == "ambiguous", sample_id, "")
-      )
-    gg <- ggplot2::ggplot(xdat) +
-      ggplot2::aes(x = gene_name, y = value, fill = predicted_sex) +
-      ggplot2::geom_boxplot(outlier.size = 0) +
-      ggplot2::geom_point(
-        position = ggplot2::position_jitterdodge(jitter.width = 0.1),
-        pch = 21
-      ) +
-      ggrepel::geom_label_repel(ggplot2::aes(label = label)) +
-      ggplot2::labs(
-        title = "Sex-specific gene expression",
-        y = "log2(CPM)",
-        x = ""
-      )
-    out$plot <- gg
-    print(gg)
-  }
-  out
+  classify_sex(X, sex_genes = sex_genes)
 }
 
 #' @noRd
 #' @export
 classify_sex.SummarizedExperiment <- function(
-    x,
-    sex_genes = NULL,
-    species = NULL,
-    plot = TRUE,
-    ...
+  x,
+  sex_genes = NULL,
+  species = NULL,
+  ...
 ) {
   assert_class(x, "SummarizedExperiment")
   anames <- SummarizedExperiment::assayNames(x)
@@ -123,7 +129,7 @@ classify_sex.SummarizedExperiment <- function(
     samples = as.data.frame(SummarizedExperiment::colData(x)),
     genes = as.data.frame(SummarizedExperiment::rowData(x)),
   )
-  classify_sex(y, species = species, plot = plot, ...)
+  classify_sex(y, species = species, ...)
 }
 
 #' Genes associated with sex-specific expression.
@@ -137,7 +143,7 @@ sex_genes <- function(species = "human") {
   spinfo <- sparrow::species_info(species)
   assert_choice(spinfo$alias, c("mouse", "human"))
   id_col <- paste0(spinfo$alias, "_id")
-  
+
   out <- dplyr::tribble(
     ~sex,     ~symbol,   ~human_id,            ~mouse_id,
     "female", "XIST",    "ENSG00000229807",    "ENSMUSG00000086503",
@@ -148,8 +154,45 @@ sex_genes <- function(species = "human") {
     "male",   "KDM5D",   "ENSG00000012817",    "ENSMUSG00000056673",
     "male",   "RPS4Y1",  "ENSG00000129824",    NA_character_,
   ) # fmt: skip
-  
+
   out |>
     dplyr::select(sex, symbol, feature_id = .data[[id_col]]) |>
     dplyr::filter(!is.na(feature_id))
+}
+
+#' Plots the sex classification results from classify_sex
+#'
+#' @export
+#' @param x the output from [classify_sex()]
+#' @param label_ambiguous Add labels to samples classified as ambigious to
+#'   highlight there sample id's
+#' @return a ggplot object
+plot_sex_classification <- function(x, label_ambiguous = TRUE, ...) {
+  assert_class(x, "list")
+  assert_subset(c("data", "prediction"), names(x))
+  assert_flag(label_ambiguous)
+  iby <- intersect(c("dataset", "sample_id"), colnames(x$data))
+  xdat <- dplyr::inner_join(x$data, x$prediction, by = iby)
+  if (label_ambiguous) {
+    xdat <- xdat |>
+      dplyr::mutate(
+        label = ifelse(predicted_sex == "ambiguous", sample_id, "")
+      )
+  }
+  gg <- ggplot2::ggplot(xdat) +
+    ggplot2::aes(x = gene_name, y = value, fill = predicted_sex) +
+    ggplot2::geom_boxplot(outlier.size = 0) +
+    ggplot2::geom_point(
+      position = ggplot2::position_jitterdodge(jitter.width = 0.1),
+      pch = 21
+    ) +
+    ggplot2::labs(
+      title = "Sex-specific gene expression",
+      y = "log2(CPM)",
+      x = ""
+    )
+  if (label_ambiguous) {
+    gg <- gg + ggrepel::geom_label_repel(ggplot2::aes(label = label))
+  }
+  gg
 }

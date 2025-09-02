@@ -1,9 +1,6 @@
 # Originally extracted from the app.model::compare_geneset_shifts function
 
-#' Visualizes geneset "activity" across a number of comparisons.ks
-#'
-#' This funciton is used primarily to generate geneshift plots to compare
-#' the AppSAA model vs 5XFAD, but why not generalize ...
+#' Visualizes geneset "activity" across a number of comparisons.
 #'
 #' We assume that the ffsea results each have a GeneSetDb that has genesets
 #' by the same name in them.
@@ -252,18 +249,19 @@ geneset_shifts <- function(x, genesets, gsea.method = NULL,
 
     gg <- gg +
       ggplot2::geom_text(
-        mapping = ggplot2::aes(
-          x = -Inf, y = Inf, label = label),
-        hjust = -0.1, vjust = 1.2,
-        data = dat.stat)
+        mapping = ggplot2::aes(x = -Inf, y = Inf, label = label),
+        hjust = -0.1,
+        vjust = 1.2,
+        data = dat.stat
+      )
   }
 
   gg <- gg + ggplot2::theme(
     legend.position = legend.position,
     panel.grid.major = ggplot2::element_blank(),
     panel.grid.minor = ggplot2::element_blank(),
-    axis.text.y = element_blank(),
-    axis.ticks.y = element_blank())
+    axis.text.y = ggplot2::element_blank(),
+    axis.ticks.y = ggplot2::element_blank())
 
   list(
     dat.gs = dat.gs,

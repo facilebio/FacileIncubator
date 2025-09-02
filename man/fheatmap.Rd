@@ -11,6 +11,8 @@ fheatmap(
   gdb = NULL,
   rename_rows = NULL,
   ...,
+  batch = NULL,
+  main = NULL,
   colors = NULL
 )
 }
@@ -30,16 +32,16 @@ TODO: support batch correction over data retrieved from \code{x}
 set.seed(0xBEEF)
 set.seed(0xBEE)
 afds <- FacileData::an_fds()
-asamples <- FacileData::samples(afds) |> 
-  FacileData::with_sample_covariates() |> 
-  dplyr::filter(cell_abbrev \%in\% c("IMM", "PT")) |> 
+asamples <- FacileData::samples(afds) |>
+  FacileData::with_sample_covariates() |>
+  dplyr::filter(cell_abbrev \%in\% c("IMM", "PT")) |>
   dplyr::sample_n(10)
 
 genes <- dplyr::tibble(
     name = c(
       "AOX1",   "DPEP1",  "CDH6", "NAT8",     # PT
       "S100A8", "JCHAIN", "CCL4", "FCER1G"),  # IMM
-    class = rep(c("PT", "IMM"), each = 4)) |> 
+    class = rep(c("PT", "IMM"), each = 4)) |>
   dplyr::inner_join(FacileData::features(afds), by = "name")
 fheatmap(
   asamples,
